@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Attendance Reports | Serverless Attendance</title>
+  <link rel="stylesheet" href="css/style.css">
+  
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+</head>
+<body>
+
+  <!-- Navigation Bar -->
+  <header class="navbar">
+    <a href="admin-dashboard.html" class="nav-brand">
+      🎓 Cloud Attendance &bull; Reports
+    </a>
+    <nav class="nav-links">
+      <a href="admin-dashboard.html" class="nav-link" id="navDashLink">Dashboard</a>
+      <a href="attendance.html" class="nav-link">Attendance</a>
+      <a href="reports.html" class="nav-link active">Reports</a>
+    </nav>
+    <div class="nav-user">
+      <span id="navUserName">User</span>
+      <span id="navUserRole" class="role-badge role-admin">admin</span>
+      <button onclick="logoutUser()" class="btn btn-secondary btn-sm">Sign Out</button>
+    </div>
+  </header>
+
+  <main class="container">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+      <div>
+        <h1 style="font-size: 1.75rem;">Attendance Analytics & Reports</h1>
+        <p style="color: var(--text-muted); font-size: 0.95rem;">Generate class-wise and subject-wise cumulative attendance summaries.</p>
+      </div>
+      <div>
+        <button onclick="window.print()" class="btn btn-secondary btn-sm">🖨️ Print / Save PDF</button>
+      </div>
+    </div>
+
+    <!-- Filter Card -->
+    <div class="card">
+      <h3 class="card-title">Filter Criteria</h3>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-top: 1rem;">
+        <div class="form-group" style="margin-bottom: 0;">
+          <label class="form-label" for="reportClass">Class / Section</label>
+          <select id="reportClass" class="form-select">
+            <option value="">-- Choose Class --</option>
+          </select>
+        </div>
+
+        <div class="form-group" style="margin-bottom: 0;">
+          <label class="form-label" for="reportSubject">Subject</label>
+          <select id="reportSubject" class="form-select">
+            <option value="">-- All Subjects --</option>
+          </select>
+        </div>
+
+        <div class="form-group" style="margin-bottom: 0;">
+          <label class="form-label" for="reportStartDate">Start Date</label>
+          <input type="date" id="reportStartDate" class="form-control" />
+        </div>
+
+        <div class="form-group" style="margin-bottom: 0;">
+          <label class="form-label" for="reportEndDate">End Date</label>
+          <input type="date" id="reportEndDate" class="form-control" />
+        </div>
+
+        <div style="display: flex; align-items: flex-end;">
+          <button id="generateReportBtn" class="btn btn-primary" style="width: 100%;">
+            Generate Report
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Summary Metrics Card -->
+    <div class="stats-grid" id="reportSummaryGrid" style="display: none;">
+      <div class="stat-card">
+        <div class="stat-label">Total Sessions Conducted</div>
+        <div class="stat-value" id="totalSessionsVal">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Students Tracked</div>
+        <div class="stat-value" id="totalStudentsVal">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Average Class Attendance</div>
+        <div class="stat-value" id="avgAttendanceVal">0%</div>
+      </div>
+    </div>
+
+    <!-- Report Table Card -->
+    <div class="card" id="reportTableCard" style="display: none;">
+      <h3 class="card-title" id="reportTitle">Class Attendance Summary</h3>
+      
+      <div class="table-responsive" style="margin-top: 1rem;">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Roll Number</th>
+              <th>Student Name</th>
+              <th style="text-align: center;">Total Classes</th>
+              <th style="text-align: center;">Attended (Present)</th>
+              <th style="text-align: center;">Absent</th>
+              <th style="text-align: center;">Attendance %</th>
+              <th>Eligibility Status</th>
+            </tr>
+          </thead>
+          <tbody id="reportTableBody">
+            <!-- Dynamic student rows -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    <p>Serverless Student Attendance Management System &bull; Reporting Engine</p>
+  </footer>
+
+  <script src="js/firebase-config.js"></script>
+  <script src="js/auth.js"></script>
+  <script>
+    protectPage(["admin", "teacher"]);
+
+    const reportClass = document.getElementById("reportClass");
+    const reportSubject = document.getElementById("reportSubject");
+    const generateBtn = document.getElementById("generateReportBtn");
+    const summaryGrid = document.getElementById("reportSummaryGrid");
+    const reportTableCard = document.getElementById("reportTableCard");
+
+    // Initialize dropdowns
+    async function initReports() {
+      if (!db) return;
+      try {
+        const [classesSnap, subjectsSnap] = await Promise.all([
+          db.collection("classes").get(),
+          db.collection("subjects").get()
+        ]);
+
+        reportClass.innerHTML = '<option value="">-- Choose Class --</option>' +
+          classesSnap.docs.map(d => `<option value="${d.id}">${d.data().name || d.id}</option>`).join("");
+
+        reportSubject.innerHTML = '<option value="">-- All Subjects --</option>' +
+          subjectsSnap.docs.map(d => `<option value="${d.id}">${d.data().code || d.id} - ${d.data().name || ""}</option>`).join("");
+
+        // Set default dates: from 30 days ago to today
+        const today = new Date();
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(today.getDate() - 30);
+
+        document.getElementById("reportEndDate").value = today.toISOString().split("T")[0];
+        document.getElementById("reportStartDate").value = thirtyDaysAgo.toISOString().split("T")[0];
+
+      } catch (err) {
+        console.error("Error loading filters:", err);
+      }
+    }
+
+    async function generateReport() {
+      const classId = reportClass.value;
+      const subjectId = reportSubject.value;
+      const startDate = document.getElementById("reportStartDate").value;
+      const endDate = document.getElementById("reportEndDate").value;
+
+      if (!classId) {
+        alert("Please select a Class / Section to generate report.");
+        return;
+      }
+
+      generateBtn.disabled = true;
+      generateBtn.textContent = "Calculating...";
+
+      try {
+        // Fetch students in this class
+        const studentsSnap = await db.collection("students").where("classId", "==", classId).get();
+        const students = studentsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+        // Query attendance records for this class
+        let query = db.collection("attendance").where("classId", "==", classId);
+        if (subjectId) {
+          query = query.where("subjectId", "==", subjectId);
+        }
+
+        const attendanceSnap = await query.get();
+
+        // Filter by date range in memory
+        const records = [];
+        attendanceSnap.forEach(d => {
+          const row = d.data();
+          const rDate = row.date || "";
+          if ((!startDate || rDate >= startDate) && (!endDate || rDate <= endDate)) {
+            records.push(row);
+          }
+        });
+
+        // Compute unique sessions (dates)
+        const uniqueDates = new Set(records.map(r => r.date));
+        const totalSessions = uniqueDates.size;
+
+        // Tally per student
+        const studentStats = {};
+        students.forEach(s => {
+          studentStats[s.id] = { student: s, total: 0, present: 0, absent: 0 };
+        });
+
+        let grandTotal = 0;
+        let grandPresent = 0;
+
+        records.forEach(r => {
+          const sid = r.studentId;
+          if (!studentStats[sid]) {
+            studentStats[sid] = {
+              student: { rollNumber: r.rollNumber || "N/A", name: r.studentName || "Student" },
+              total: 0,
+              present: 0,
+              absent: 0
+            };
+          }
+
+          studentStats[sid].total += 1;
+          grandTotal += 1;
+
+          if (r.status === "Present") {
+            studentStats[sid].present += 1;
+            grandPresent += 1;
+          } else {
+            studentStats[sid].absent += 1;
+          }
+        });
+
+        // Render Summary
+        document.getElementById("totalSessionsVal").textContent = totalSessions;
+        document.getElementById("totalStudentsVal").textContent = students.length;
+        const avgPct = grandTotal > 0 ? Math.round((grandPresent / grandTotal) * 100) : 0;
+        document.getElementById("avgAttendanceVal").textContent = `${avgPct}%`;
+
+        // Render Table
+        const sortedStudents = Object.values(studentStats);
+        sortedStudents.sort((a, b) => (a.student.rollNumber || "").localeCompare(b.student.rollNumber || "", undefined, { numeric: true }));
+
+        const tbody = document.getElementById("reportTableBody");
+        if (!sortedStudents.length) {
+          tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:1.5rem;">No student records found.</td></tr>`;
+        } else {
+          tbody.innerHTML = sortedStudents.map(item => {
+            const pct = item.total > 0 ? Math.round((item.present / item.total) * 100) : 0;
+            const isEligible = pct >= 75;
+
+            return `
+              <tr>
+                <td><strong>${item.student.rollNumber || "-"}</strong></td>
+                <td>${item.student.name || "-"}</td>
+                <td style="text-align: center;">${item.total}</td>
+                <td style="text-align: center; color: var(--success); font-weight: 600;">${item.present}</td>
+                <td style="text-align: center; color: var(--danger); font-weight: 600;">${item.absent}</td>
+                <td style="text-align: center;">
+                  <strong>${pct}%</strong>
+                  <div class="progress-bar-container">
+                    <div class="progress-bar" style="width: ${pct}%; background: ${isEligible ? 'var(--success)' : 'var(--danger)'};"></div>
+                  </div>
+                </td>
+                <td>
+                  <span class="badge ${isEligible ? 'badge-present' : 'badge-absent'}">
+                    ${isEligible ? 'Eligible (>=75%)' : 'Shortage (<75%)'}
+                  </span>
+                </td>
+              </tr>
+            `;
+          }).join("");
+        }
+
+        summaryGrid.style.display = "grid";
+        reportTableCard.style.display = "block";
+
+      } catch (err) {
+        alert("Error generating report: " + err.message);
+      } finally {
+        generateBtn.disabled = false;
+        generateBtn.textContent = "Generate Report";
+      }
+    }
+
+    generateBtn.addEventListener("click", generateReport);
+    window.addEventListener("DOMContentLoaded", initReports);
+  </script>
+</body>
+</html>

@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Manage Subjects | Serverless Attendance</title>
+  <link rel="stylesheet" href="css/style.css">
+  
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+</head>
+<body>
+
+  <!-- Navigation Bar -->
+  <header class="navbar">
+    <a href="admin-dashboard.html" class="nav-brand">
+      🎓 Cloud Attendance &bull; Admin
+    </a>
+    <nav class="nav-links">
+      <a href="admin-dashboard.html" class="nav-link">Dashboard</a>
+      <a href="students.html" class="nav-link">Students</a>
+      <a href="teachers.html" class="nav-link">Teachers</a>
+      <a href="classes.html" class="nav-link">Classes</a>
+      <a href="subjects.html" class="nav-link active">Subjects</a>
+      <a href="reports.html" class="nav-link">Reports</a>
+    </nav>
+    <div class="nav-user">
+      <span id="navUserName">Admin</span>
+      <span id="navUserRole" class="role-badge role-admin">admin</span>
+      <button onclick="logoutUser()" class="btn btn-secondary btn-sm">Sign Out</button>
+    </div>
+  </header>
+
+  <main class="container">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+      <div>
+        <h1 style="font-size: 1.75rem;">Subject Catalog</h1>
+        <p style="color: var(--text-muted); font-size: 0.95rem;">Manage course subjects, curriculum codes, and academic departments.</p>
+      </div>
+      <div>
+        <button onclick="toggleSubjectForm()" class="btn btn-primary btn-sm">+ Add New Subject</button>
+      </div>
+    </div>
+
+    <div id="statusAlert" class="alert"></div>
+
+    <!-- Add Subject Form -->
+    <div class="card" id="addSubjectCard" style="display: none;">
+      <h3 class="card-title">Add Course Subject</h3>
+      <form id="subjectForm" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-top: 1rem;">
+        <div class="form-group" style="margin-bottom: 0;">
+          <label class="form-label" for="subjectCode">Subject Code</label>
+          <input type="text" id="subjectCode" class="form-control" placeholder="e.g. CS501" required />
+        </div>
+
+        <div class="form-group" style="margin-bottom: 0;">
+          <label class="form-label" for="subjectName">Subject Title</label>
+          <input type="text" id="subjectName" class="form-control" placeholder="e.g. Cloud Computing & DevOps" required />
+        </div>
+
+        <div class="form-group" style="margin-bottom: 0;">
+          <label class="form-label" for="subjectDept">Department</label>
+          <input type="text" id="subjectDept" class="form-control" placeholder="e.g. Computer Science" required />
+        </div>
+
+        <div style="grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.5rem;">
+          <button type="button" onclick="toggleSubjectForm()" class="btn btn-secondary btn-sm">Cancel</button>
+          <button type="submit" id="saveSubjectBtn" class="btn btn-primary btn-sm">Save Subject</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Subject List -->
+    <div class="card">
+      <h3 class="card-title">Curriculum Subjects</h3>
+      
+      <div class="table-responsive" style="margin-top: 1rem;">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Code</th>
+              <th>Subject Title</th>
+              <th>Department</th>
+              <th style="text-align: right;">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="subjectsTableBody">
+            <tr>
+              <td colspan="4" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">Loading subjects...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    <p>Serverless Student Attendance Management System &bull; Subject Module</p>
+  </footer>
+
+  <script src="js/firebase-config.js"></script>
+  <script src="js/auth.js"></script>
+  <script>
+    protectPage(["admin"]);
+
+    const statusAlert = document.getElementById("statusAlert");
+    const addSubjectCard = document.getElementById("addSubjectCard");
+
+    function showAlert(msg, type = "info") {
+      statusAlert.className = `alert alert-${type} show`;
+      statusAlert.textContent = msg;
+    }
+
+    function toggleSubjectForm() {
+      addSubjectCard.style.display = addSubjectCard.style.display === "none" ? "block" : "none";
+    }
+
+    async function loadSubjects() {
+      if (!db) return;
+      try {
+        const snap = await db.collection("subjects").get();
+        const tbody = document.getElementById("subjectsTableBody");
+
+        if (snap.empty) {
+          tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">No subjects registered yet.</td></tr>`;
+          return;
+        }
+
+        tbody.innerHTML = snap.docs.map(doc => {
+          const s = doc.data();
+          return `
+            <tr>
+              <td><strong>${s.code || doc.id}</strong></td>
+              <td>${s.name || "-"}</td>
+              <td>${s.department || "-"}</td>
+              <td style="text-align: right;">
+                <button onclick="deleteSubject('${doc.id}')" class="btn btn-danger btn-sm" style="padding: 0.2rem 0.6rem; font-size: 0.8rem;">Delete</button>
+              </td>
+            </tr>
+          `;
+        }).join("");
+      } catch (err) {
+        showAlert("Error loading subjects: " + err.message, "danger");
+      }
+    }
+
+    document.getElementById("subjectForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const code = document.getElementById("subjectCode").value.trim().toUpperCase();
+      const name = document.getElementById("subjectName").value.trim();
+      const department = document.getElementById("subjectDept").value.trim();
+
+      try {
+        const subjectId = `sub_${code.replace(/[^A-Z0-9]/g, '_').toLowerCase()}`;
+        await db.collection("subjects").doc(subjectId).set({
+          id: subjectId,
+          code,
+          name,
+          department,
+          createdAt: new Date().toISOString()
+        });
+
+        showAlert(`Subject ${code} - ${name} added successfully!`, "success");
+        document.getElementById("subjectForm").reset();
+        toggleSubjectForm();
+        loadSubjects();
+      } catch (err) {
+        showAlert("Failed to save subject: " + err.message, "danger");
+      }
+    });
+
+    async function deleteSubject(subjectId) {
+      if (!confirm("Are you sure you want to delete this subject?")) return;
+      try {
+        await db.collection("subjects").doc(subjectId).delete();
+        showAlert("Subject deleted successfully.", "info");
+        loadSubjects();
+      } catch (err) {
+        showAlert("Error deleting subject: " + err.message, "danger");
+      }
+    }
+
+    window.addEventListener("DOMContentLoaded", loadSubjects);
+  </script>
+</body>
+</html>

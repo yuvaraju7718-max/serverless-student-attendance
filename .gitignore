@@ -1,0 +1,23 @@
+# Dependency directories
+node_modules/
+package-lock.json
+
+# Environment and secrets
+.env
+.env.local
+*.pem
+*.key
+serviceAccountKey.json
+*-adminsdk-*.json
+
+# Firebase cache and logs
+.firebase/
+firebase-debug.log*
+firestore-debug.log*
+ui-debug.log*
+
+# OS and Editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

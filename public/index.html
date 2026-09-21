@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cloud Attendance | Serverless Student Attendance System</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- Top Navigation -->
+  <header class="navbar">
+    <a href="index.html" class="nav-brand">
+      🎓 Cloud Attendance System
+    </a>
+    <nav class="nav-links">
+      <a href="login.html" class="btn btn-primary btn-sm">Sign In / Portal</a>
+    </nav>
+  </header>
+
+  <!-- Hero Section -->
+  <main class="container">
+    <div class="card" style="text-align: center; padding: 3.5rem 1.5rem; background: linear-gradient(135deg, #eff6ff 0%, #ffffff 100%);">
+      <h1 style="font-size: 2.25rem; color: #1e3a8a; margin-bottom: 1rem;">
+        Serverless Cloud-Based Student Attendance Management System
+      </h1>
+      <p style="font-size: 1.15rem; color: var(--secondary); max-width: 750px; margin: 0 auto 2rem auto;">
+        A fast, secure, and modern serverless attendance platform powered by Google Cloud & Firebase.
+        Mark attendance instantly, eliminate duplicate records, and calculate percentages on the fly.
+      </p>
+      <div>
+        <a href="login.html" class="btn btn-primary" style="padding: 0.75rem 2rem; font-size: 1.05rem;">
+          Go to Login Portal &rarr;
+        </a>
+      </div>
+    </div>
+
+    <!-- Role Cards -->
+    <h2 style="margin-bottom: 1.25rem; font-size: 1.4rem; color: var(--text);">Who is this platform for?</h2>
+    <div class="stats-grid">
+      <div class="card">
+        <span class="role-badge role-admin">Administrator</span>
+        <h3 style="margin-top: 0.75rem; margin-bottom: 0.5rem;">Admin Management</h3>
+        <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 1rem;">
+          Register and manage students, faculty members, academic classes, and subjects. View institute-wide attendance reports.
+        </p>
+        <a href="login.html" class="btn btn-secondary btn-sm" style="width: 100%;">Admin Login</a>
+      </div>
+
+      <div class="card">
+        <span class="role-badge role-teacher">Faculty / Teacher</span>
+        <h3 style="margin-top: 0.75rem; margin-bottom: 0.5rem;">Mark Attendance</h3>
+        <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 1rem;">
+          Access assigned classes and subjects, select date, mark Present or Absent in seconds, and prevent accidental double-marking.
+        </p>
+        <a href="login.html" class="btn btn-secondary btn-sm" style="width: 100%;">Teacher Login</a>
+      </div>
+
+      <div class="card">
+        <span class="role-badge role-student">Student</span>
+        <h3 style="margin-top: 0.75rem; margin-bottom: 0.5rem;">Student Dashboard</h3>
+        <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 1rem;">
+          View real-time subject-wise and overall attendance percentage. Track eligibility criteria with zero paper registers.
+        </p>
+        <a href="login.html" class="btn btn-secondary btn-sm" style="width: 100%;">Student Login</a>
+      </div>
+    </div>
+
+    <!-- Features / Highlights -->
+    <div class="card">
+      <h3 class="card-title">Key Architectural Highlights</h3>
+      <ul style="padding-left: 1.25rem; color: var(--secondary); display: grid; gap: 0.5rem; margin-top: 0.75rem;">
+        <li><strong>Zero Server Maintenance:</strong> Built on Firebase Serverless architecture (Hosting + Auth + Firestore + Cloud Functions).</li>
+        <li><strong>Deterministic Duplicate Prevention:</strong> Guarantees no duplicate records for the same student, subject, class, and date.</li>
+        <li><strong>Strict Role-Based Authorization:</strong> Enforced at the database level with Cloud Firestore Security Rules.</li>
+        <li><strong>Automated Calculation:</strong> Real-time attendance percentage computation per subject and overall.</li>
+      </ul>
+    </div>
+  </main>
+
+  <footer>
+    <p>Serverless Student Attendance Management System &bull; Cloud Computing Project</p>
+  </footer>
+
+</body>
+</html>

@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mark Attendance | Serverless Attendance</title>
+  <link rel="stylesheet" href="css/style.css">
+  
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+</head>
+<body>
+
+  <!-- Navigation Bar -->
+  <header class="navbar">
+    <a href="teacher-dashboard.html" class="nav-brand">
+      🎓 Cloud Attendance &bull; Attendance Portal
+    </a>
+    <nav class="nav-links">
+      <a href="teacher-dashboard.html" class="nav-link">Dashboard</a>
+      <a href="attendance.html" class="nav-link active">Mark Attendance</a>
+      <a href="reports.html" class="nav-link">Reports</a>
+    </nav>
+    <div class="nav-user">
+      <span id="navUserName">Faculty Member</span>
+      <span id="navUserRole" class="role-badge role-teacher">teacher</span>
+      <button onclick="logoutUser()" class="btn btn-secondary btn-sm">Sign Out</button>
+    </div>
+  </header>
+
+  <main class="container">
+    <div style="margin-bottom: 1.5rem;">
+      <h1 style="font-size: 1.75rem;">Mark Class Attendance</h1>
+      <p style="color: var(--text-muted); font-size: 0.95rem;">Select class, course subject, and session date to mark and submit attendance.</p>
+    </div>
+
+    <div id="statusAlert" class="alert"></div>
+
+    <!-- Attendance Selection Form Card -->
+    <div class="card">
+      <h3 class="card-title">1. Select Academic Session</h3>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-top: 1rem;">
+        <div class="form-group" style="margin-bottom: 0;">
+          <label class="form-label" for="classSelect">Class / Section</label>
+          <select id="classSelect" class="form-select">
+            <option value="">-- Choose Class --</option>
+          </select>
+        </div>
+
+        <div class="form-group" style="margin-bottom: 0;">
+          <label class="form-label" for="subjectSelect">Subject Code & Name</label>
+          <select id="subjectSelect" class="form-select">
+            <option value="">-- Choose Subject --</option>
+          </select>
+        </div>
+
+        <div class="form-group" style="margin-bottom: 0;">
+          <label class="form-label" for="dateSelect">Session Date</label>
+          <input type="date" id="dateSelect" class="form-control" />
+        </div>
+
+        <div style="display: flex; align-items: flex-end;">
+          <button id="loadStudentsBtn" class="btn btn-primary" style="width: 100%;">
+            Load Student Roster
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Student Attendance Roster Card -->
+    <div class="card" id="rosterSection" style="display: none;">
+      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 1rem;">
+        <div>
+          <h3 class="card-title" style="margin-bottom: 0.25rem;">2. Student Roll Call</h3>
+          <p class="card-subtitle" id="rosterSubtitle" style="margin-bottom: 0;">Mark each student as Present or Absent.</p>
+        </div>
+        <div style="display: flex; gap: 0.5rem;">
+          <button type="button" class="btn btn-secondary btn-sm" onclick="markAll(true)">Mark All Present</button>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="markAll(false)">Mark All Absent</button>
+        </div>
+      </div>
+
+      <div class="table-responsive">
+        <table class="table">
+          <thead>
+            <tr>
+              <th style="width: 80px;">S.No</th>
+              <th>Roll Number</th>
+              <th>Student Name</th>
+              <th style="text-align: center; width: 220px;">Attendance Status</th>
+            </tr>
+          </thead>
+          <tbody id="studentRosterBody">
+            <!-- Student rows dynamically generated -->
+          </tbody>
+        </table>
+      </div>
+
+      <div style="margin-top: 1.5rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+        <div id="rosterSummary" style="font-size: 0.95rem; color: var(--secondary);">
+          Total: <strong id="totalCount">0</strong> &bull; Present: <strong id="presentCount" style="color: var(--success);">0</strong> &bull; Absent: <strong id="absentCount" style="color: var(--danger);">0</strong>
+        </div>
+        <button type="button" id="submitAttendanceBtn" class="btn btn-primary">
+          💾 Save & Submit Attendance
+        </button>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    <p>Serverless Student Attendance Management System &bull; Attendance Marking Module</p>
+  </footer>
+
+  <script src="js/firebase-config.js"></script>
+  <script src="js/auth.js"></script>
+  <script>
+    protectPage(["teacher", "admin"]);
+
+    // Default to today's date YYYY-MM-DD
+    const dateInput = document.getElementById("dateSelect");
+    dateInput.value = new Date().toISOString().split("T")[0];
+
+    const classSelect = document.getElementById("classSelect");
+    const subjectSelect = document.getElementById("subjectSelect");
+    const loadStudentsBtn = document.getElementById("loadStudentsBtn");
+    const rosterSection = document.getElementById("rosterSection");
+    const studentRosterBody = document.getElementById("studentRosterBody");
+    const statusAlert = document.getElementById("statusAlert");
+    const submitBtn = document.getElementById("submitAttendanceBtn");
+
+    let currentStudents = [];
+
+    // Helper: Show alert message
+    function showAlert(msg, type = "info") {
+      statusAlert.className = `alert alert-${type} show`;
+      statusAlert.textContent = msg;
+    }
+
+    // Populate dropdowns on page load
+    async function initializeDropdowns() {
+      if (!auth || !db) return;
+
+      auth.onAuthStateChanged(async (user) => {
+        if (!user) return;
+
+        try {
+          // Check URL query parameters for pre-selected class/subject
+          const urlParams = new URLSearchParams(window.location.search);
+          const preClass = urlParams.get("classId");
+          const preSubject = urlParams.get("subjectId");
+
+          const userDoc = await db.collection("users").doc(user.uid).get();
+          const role = userDoc.exists ? userDoc.data().role : "";
+
+          let classesSnap, subjectsSnap;
+
+          if (role === "teacher") {
+            // Load assigned classes and subjects
+            const asgnSnap = await db.collection("assignments").where("teacherId", "==", user.uid).get();
+            const classSet = new Set();
+            const subjectSet = new Set();
+
+            asgnSnap.forEach(doc => {
+              const d = doc.data();
+              if (d.classId) classSet.add(d.classId);
+              if (d.subjectId) subjectSet.add(JSON.stringify({ id: d.subjectId, name: d.subjectName || d.subjectId }));
+            });
+
+            classSelect.innerHTML = '<option value="">-- Choose Class --</option>' + 
+              Array.from(classSet).map(c => `<option value="${c}" ${c === preClass ? 'selected' : ''}>${c}</option>`).join("");
+
+            subjectSelect.innerHTML = '<option value="">-- Choose Subject --</option>' + 
+              Array.from(subjectSet).map(s => {
+                const sub = JSON.parse(s);
+                return `<option value="${sub.id}" ${sub.id === preSubject ? 'selected' : ''}>${sub.name}</option>`;
+              }).join("");
+          } else {
+            // Admin: Load all classes and subjects
+            [classesSnap, subjectsSnap] = await Promise.all([
+              db.collection("classes").get(),
+              db.collection("subjects").get()
+            ]);
+
+            classSelect.innerHTML = '<option value="">-- Choose Class --</option>' + 
+              classesSnap.docs.map(d => `<option value="${d.id}" ${d.id === preClass ? 'selected' : ''}>${d.data().name || d.id}</option>`).join("");
+
+            subjectSelect.innerHTML = '<option value="">-- Choose Subject --</option>' + 
+              subjectsSnap.docs.map(d => `<option value="${d.id}" ${d.id === preSubject ? 'selected' : ''}>${d.data().code || d.id} - ${d.data().name || ""}</option>`).join("");
+          }
+
+          // If query params are provided, auto-trigger load
+          if (preClass && preSubject) {
+            loadStudents();
+          }
+
+        } catch (err) {
+          console.error("Error loading dropdown data:", err);
+        }
+      });
+    }
+
+    // Load student roster for the chosen class and date
+    async function loadStudents() {
+      const classId = classSelect.value;
+      const subjectId = subjectSelect.value;
+      const date = dateInput.value;
+
+      if (!classId || !subjectId || !date) {
+        showAlert("Please select Class, Subject, and Date.", "danger");
+        return;
+      }
+
+      showAlert("Loading class roster...", "info");
+      loadStudentsBtn.disabled = true;
+
+      try {
+        // Query students in selected class
+        const studentsSnap = await db.collection("students")
+          .where("classId", "==", classId)
+          .get();
+
+        if (studentsSnap.empty) {
+          showAlert(`No students registered under class '${classId}'. Add students first in Student Management.`, "danger");
+          rosterSection.style.display = "none";
+          loadStudentsBtn.disabled = false;
+          return;
+        }
+
+        // Check if attendance already exists for this class, subject, date
+        const existingSnap = await db.collection("attendance")
+          .where("classId", "==", classId)
+          .where("subjectId", "==", subjectId)
+          .where("date", "==", date)
+          .get();
+
+        const existingMap = {};
+        existingSnap.forEach(d => {
+          const row = d.data();
+          existingMap[row.studentId] = row.status;
+        });
+
+        currentStudents = studentsSnap.docs.map(d => {
+          const s = d.data();
+          return {
+            id: d.id,
+            uid: s.uid || d.id,
+            rollNumber: s.rollNumber || "N/A",
+            name: s.name || "Unnamed Student",
+            status: existingMap[d.id] || "Present" // Default to Present or existing status
+          };
+        });
+
+        // Sort by Roll Number
+        currentStudents.sort((a, b) => a.rollNumber.localeCompare(b.rollNumber, undefined, { numeric: true }));
+
+        renderRoster();
+
+        if (existingSnap.size > 0) {
+          showAlert(`⚠️ Attendance was previously recorded for ${date} (${existingSnap.size} entries). Submitting will safely update the records.`, "info");
+        } else {
+          showAlert(`Loaded ${currentStudents.length} students. Review and click 'Save & Submit Attendance'.`, "success");
+        }
+
+        rosterSection.style.display = "block";
+      } catch (err) {
+        showAlert("Error loading roster: " + err.message, "danger");
+      } finally {
+        loadStudentsBtn.disabled = false;
+      }
+    }
+
+    // Render roster table
+    function renderRoster() {
+      studentRosterBody.innerHTML = currentStudents.map((s, idx) => `
+        <tr>
+          <td>${idx + 1}</td>
+          <td><strong>${s.rollNumber}</strong></td>
+          <td>${s.name}</td>
+          <td style="text-align: center;">
+            <label style="margin-right: 1rem; cursor: pointer; color: var(--success); font-weight: 600;">
+              <input type="radio" name="status_${s.id}" value="Present" ${s.status === 'Present' ? 'checked' : ''} onchange="updateStatus('${s.id}', 'Present')">
+              Present
+            </label>
+            <label style="cursor: pointer; color: var(--danger); font-weight: 600;">
+              <input type="radio" name="status_${s.id}" value="Absent" ${s.status === 'Absent' ? 'checked' : ''} onchange="updateStatus('${s.id}', 'Absent')">
+              Absent
+            </label>
+          </td>
+        </tr>
+      `).join("");
+
+      updateCounts();
+    }
+
+    function updateStatus(id, newStatus) {
+      const stu = currentStudents.find(s => s.id === id);
+      if (stu) stu.status = newStatus;
+      updateCounts();
+    }
+
+    function markAll(isPresent) {
+      const target = isPresent ? "Present" : "Absent";
+      currentStudents.forEach(s => s.status = target);
+      renderRoster();
+    }
+
+    function updateCounts() {
+      const total = currentStudents.length;
+      const present = currentStudents.filter(s => s.status === "Present").length;
+      const absent = total - present;
+
+      document.getElementById("totalCount").textContent = total;
+      document.getElementById("presentCount").textContent = present;
+      document.getElementById("absentCount").textContent = absent;
+    }
+
+    // Submit attendance with Deterministic Duplicate Prevention
+    async function submitAttendance() {
+      const classId = classSelect.value;
+      const subjectId = subjectSelect.value;
+      const date = dateInput.value;
+      const teacherId = auth.currentUser ? auth.currentUser.uid : "ADMIN";
+
+      if (!currentStudents.length) return;
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = "Saving records to Firestore...";
+
+      try {
+        const batch = db.batch();
+        const now = new Date().toISOString();
+
+        currentStudents.forEach(student => {
+          // Deterministic Document ID: {studentId}_{subjectId}_{classId}_{date}
+          // Prevents duplicate entries! A repeat submission automatically updates this doc.
+          const docId = `${student.id}_${subjectId}_${classId}_${date}`.replace(/[\/\s]/g, "_");
+          const docRef = db.collection("attendance").doc(docId);
+
+          batch.set(docRef, {
+            id: docId,
+            studentId: student.id,
+            studentUid: student.uid,
+            studentName: student.name,
+            rollNumber: student.rollNumber,
+            classId: classId,
+            subjectId: subjectId,
+            teacherId: teacherId,
+            date: date,
+            status: student.status,
+            updatedAt: now,
+            createdAt: now
+          }, { merge: true });
+        });
+
+        await batch.commit();
+
+        showAlert(`✅ Successfully recorded attendance for ${currentStudents.length} students on ${date}!`, "success");
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } catch (err) {
+        showAlert("Failed to submit attendance: " + err.message, "danger");
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = "💾 Save & Submit Attendance";
+      }
+    }
+
+    loadStudentsBtn.addEventListener("click", loadStudents);
+    submitBtn.addEventListener("click", submitAttendance);
+    window.addEventListener("DOMContentLoaded", initializeDropdowns);
+  </script>
+</body>
+</html>

@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>User Profile | Serverless Attendance</title>
+  <link rel="stylesheet" href="css/style.css">
+  
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+</head>
+<body>
+
+  <!-- Navigation Bar -->
+  <header class="navbar">
+    <a href="index.html" class="nav-brand">
+      🎓 Cloud Attendance &bull; Profile
+    </a>
+    <nav class="nav-links">
+      <a href="javascript:history.back()" class="nav-link">&larr; Back</a>
+    </nav>
+    <div class="nav-user">
+      <button onclick="logoutUser()" class="btn btn-secondary btn-sm">Sign Out</button>
+    </div>
+  </header>
+
+  <main class="container" style="max-width: 680px;">
+    <div class="card" style="margin-top: 1rem;">
+      <div style="text-align: center; padding-bottom: 1.5rem; border-bottom: 1px solid var(--border); margin-bottom: 1.5rem;">
+        <div style="width: 80px; height: 80px; border-radius: 50%; background: var(--primary-light); color: var(--primary); font-size: 2.25rem; font-weight: bold; display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem auto;" id="avatarInitial">
+          U
+        </div>
+        <h2 id="profileName" style="margin-bottom: 0.25rem;">User Account</h2>
+        <span id="profileRoleBadge" class="role-badge role-admin">Role</span>
+      </div>
+
+      <div style="display: grid; gap: 1rem;">
+        <div>
+          <label style="font-size: 0.8rem; text-transform: uppercase; color: var(--text-muted); font-weight: bold;">Institutional Email</label>
+          <div id="profileEmail" style="font-size: 1.05rem; font-weight: 500; color: var(--text);">-</div>
+        </div>
+
+        <div id="extraFieldContainer1" style="display: none;">
+          <label id="extraFieldLabel1" style="font-size: 0.8rem; text-transform: uppercase; color: var(--text-muted); font-weight: bold;">Department</label>
+          <div id="extraFieldValue1" style="font-size: 1.05rem; font-weight: 500; color: var(--text);">-</div>
+        </div>
+
+        <div id="extraFieldContainer2" style="display: none;">
+          <label id="extraFieldLabel2" style="font-size: 0.8rem; text-transform: uppercase; color: var(--text-muted); font-weight: bold;">Class / Section</label>
+          <div id="extraFieldValue2" style="font-size: 1.05rem; font-weight: 500; color: var(--text);">-</div>
+        </div>
+
+        <div>
+          <label style="font-size: 0.8rem; text-transform: uppercase; color: var(--text-muted); font-weight: bold;">Authentication ID (UID)</label>
+          <div id="profileUid" style="font-family: monospace; font-size: 0.9rem; color: var(--secondary); word-break: break-all;">-</div>
+        </div>
+      </div>
+
+      <div style="margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--border); display: flex; justify-content: flex-end;">
+        <button onclick="logoutUser()" class="btn btn-danger btn-sm">Sign Out of Account</button>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    <p>Serverless Student Attendance Management System &bull; User Profile</p>
+  </footer>
+
+  <script src="js/firebase-config.js"></script>
+  <script src="js/auth.js"></script>
+  <script>
+    protectPage([]);
+
+    auth.onAuthStateChanged(async (user) => {
+      if (!user) return;
+
+      try {
+        const userDoc = await db.collection("users").doc(user.uid).get();
+        const data = userDoc.exists ? userDoc.data() : {};
+
+        const name = data.name || user.email;
+        const role = data.role || "student";
+
+        document.getElementById("profileName").textContent = name;
+        document.getElementById("avatarInitial").textContent = name.charAt(0).toUpperCase();
+        document.getElementById("profileEmail").textContent = user.email;
+        document.getElementById("profileUid").textContent = user.uid;
+
+        const roleBadge = document.getElementById("profileRoleBadge");
+        roleBadge.textContent = role;
+        roleBadge.className = `role-badge role-${role}`;
+
+        if (role === "teacher" && data.department) {
+          document.getElementById("extraFieldContainer1").style.display = "block";
+          document.getElementById("extraFieldLabel1").textContent = "Department";
+          document.getElementById("extraFieldValue1").textContent = data.department;
+        } else if (role === "student") {
+          if (data.rollNumber) {
+            document.getElementById("extraFieldContainer1").style.display = "block";
+            document.getElementById("extraFieldLabel1").textContent = "Roll Number";
+            document.getElementById("extraFieldValue1").textContent = data.rollNumber;
+          }
+          if (data.classId) {
+            document.getElementById("extraFieldContainer2").style.display = "block";
+            document.getElementById("extraFieldLabel2").textContent = "Enrolled Class";
+            document.getElementById("extraFieldValue2").textContent = data.classId;
+          }
+        }
+      } catch (err) {
+        console.error("Error loading profile:", err);
+      }
+    });
+  </script>
+</body>
+</html>

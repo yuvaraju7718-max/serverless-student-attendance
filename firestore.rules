@@ -1,0 +1,73 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && getUserData().role == 'admin';
+    }
+
+    function isTeacher() {
+      return isAuthenticated() && getUserData().role == 'teacher';
+    }
+
+    function isStudent() {
+      return isAuthenticated() && getUserData().role == 'student';
+    }
+
+    // Users collection: only admin can manage, user can read own profile
+    match /users/{userId} {
+      allow read: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+      allow write: if isAdmin();
+    }
+
+    // Teachers & Students directory: readable by authenticated users, writable only by admin
+    match /teachers/{teacherId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    match /students/{studentId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // Classes & Subjects: readable by all logged-in users, managed by admin
+    match /classes/{classId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    match /subjects/{subjectId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    match /assignments/{assignmentId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // Attendance:
+    // - Admin: full read/write
+    // - Teacher: can read and submit attendance
+    // - Student: can ONLY read their own attendance, NEVER write/modify
+    match /attendance/{attendanceId} {
+      allow read: if isAuthenticated() && (
+        isAdmin() || 
+        isTeacher() || 
+        (isStudent() && resource.data.studentId == request.auth.uid)
+      );
+      allow create, update: if isAuthenticated() && (isAdmin() || isTeacher());
+      allow delete: if isAdmin();
+    }
+  }
+}

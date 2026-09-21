@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Student Portal | Serverless Attendance</title>
+  <link rel="stylesheet" href="css/style.css">
+  
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+</head>
+<body>
+
+  <!-- Navigation Bar -->
+  <header class="navbar">
+    <a href="student-dashboard.html" class="nav-brand">
+      🎓 Cloud Attendance &bull; Student Portal
+    </a>
+    <nav class="nav-links">
+      <a href="student-dashboard.html" class="nav-link active">My Attendance</a>
+      <a href="profile.html" class="nav-link">Profile</a>
+    </nav>
+    <div class="nav-user">
+      <span id="navUserName">Student</span>
+      <span id="navUserRole" class="role-badge role-student">student</span>
+      <button onclick="logoutUser()" class="btn btn-secondary btn-sm">Sign Out</button>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- Student Profile Header Banner -->
+    <div class="card" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+      <div>
+        <h1 style="font-size: 1.6rem;" id="studentNameDisplay">Loading Student Profile...</h1>
+        <p style="color: var(--text-muted); font-size: 0.95rem; margin-top: 0.25rem;">
+          Roll Number: <strong id="studentRollDisplay">-</strong> &bull; Class: <strong id="studentClassDisplay">-</strong>
+        </p>
+      </div>
+      <div style="background: var(--primary-light); padding: 0.75rem 1.25rem; border-radius: 8px; border: 1px solid #bfdbfe; text-align: center;">
+        <span style="font-size: 0.8rem; text-transform: uppercase; font-weight: 700; color: var(--primary);">Overall Attendance</span>
+        <div style="font-size: 2rem; font-weight: 800; color: var(--primary);" id="overallPercentage">0%</div>
+      </div>
+    </div>
+
+    <!-- Attendance Percentage Breakdown per Subject -->
+    <div class="card">
+      <h3 class="card-title">Subject-Wise Attendance Breakdown</h3>
+      <p class="card-subtitle">Detailed attendance calculation according to academic records.</p>
+
+      <div class="table-responsive">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Subject</th>
+              <th style="text-align: center;">Total Classes</th>
+              <th style="text-align: center;">Attended (Present)</th>
+              <th style="text-align: center;">Absent</th>
+              <th style="text-align: center;">Percentage</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="subjectAttendanceBody">
+            <tr>
+              <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">
+                Calculating attendance metrics...
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Attendance Log / History -->
+    <div class="card">
+      <h3 class="card-title">Recent Attendance Log</h3>
+      <p class="card-subtitle">Day-by-day attendance status for your enrolled classes.</p>
+
+      <div class="table-responsive">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Subject</th>
+              <th>Class</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="attendanceLogsBody">
+            <tr>
+              <td colspan="4" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">
+                Loading attendance history...
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    <p>Serverless Student Attendance Management System &bull; Student Portal</p>
+  </footer>
+
+  <script src="js/firebase-config.js"></script>
+  <script src="js/auth.js"></script>
+  <script>
+    protectPage(["student", "admin"]);
+
+    async function loadStudentAttendance() {
+      if (!auth || !db) return;
+
+      auth.onAuthStateChanged(async (user) => {
+        if (!user) return;
+
+        try {
+          // Fetch student record
+          const userDoc = await db.collection("users").doc(user.uid).get();
+          const userData = userDoc.data() || {};
+
+          document.getElementById("studentNameDisplay").textContent = userData.name || user.email;
+          document.getElementById("studentRollDisplay").textContent = userData.rollNumber || "N/A";
+          document.getElementById("studentClassDisplay").textContent = userData.classId || "N/A";
+
+          // Fetch attendance history where studentId == user.uid or rollNumber matches
+          const attendanceQuery = await db.collection("attendance")
+            .where("studentId", "==", user.uid)
+            .get();
+
+          const logsBody = document.getElementById("attendanceLogsBody");
+          const subjectBody = document.getElementById("subjectAttendanceBody");
+
+          if (attendanceQuery.empty) {
+            logsBody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">No attendance records found yet.</td></tr>`;
+            subjectBody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">No subject data available.</td></tr>`;
+            document.getElementById("overallPercentage").textContent = "N/A";
+            return;
+          }
+
+          // Compute subject-wise statistics
+          const statsBySubject = {};
+          let totalClassesOverall = 0;
+          let totalPresentOverall = 0;
+
+          const records = [];
+          attendanceQuery.forEach(doc => {
+            const data = doc.data();
+            records.push(data);
+
+            const subj = data.subjectId || "General";
+            if (!statsBySubject[subj]) {
+              statsBySubject[subj] = { total: 0, present: 0, absent: 0 };
+            }
+
+            statsBySubject[subj].total += 1;
+            totalClassesOverall += 1;
+
+            if (data.status === "Present") {
+              statsBySubject[subj].present += 1;
+              totalPresentOverall += 1;
+            } else {
+              statsBySubject[subj].absent += 1;
+            }
+          });
+
+          // Sort records descending by date
+          records.sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+
+          // Render Subject Table
+          subjectBody.innerHTML = Object.keys(statsBySubject).map(subj => {
+            const item = statsBySubject[subj];
+            const pct = item.total > 0 ? Math.round((item.present / item.total) * 100) : 0;
+            const isEligible = pct >= 75;
+
+            return `
+              <tr>
+                <td><strong>${subj}</strong></td>
+                <td style="text-align: center;">${item.total}</td>
+                <td style="text-align: center; color: var(--success); font-weight: 600;">${item.present}</td>
+                <td style="text-align: center; color: var(--danger); font-weight: 600;">${item.absent}</td>
+                <td style="text-align: center;">
+                  <strong>${pct}%</strong>
+                  <div class="progress-bar-container">
+                    <div class="progress-bar" style="width: ${pct}%; background: ${isEligible ? 'var(--success)' : 'var(--danger)'};"></div>
+                  </div>
+                </td>
+                <td>
+                  <span class="badge ${isEligible ? 'badge-present' : 'badge-absent'}">
+                    ${isEligible ? 'Eligible (>=75%)' : 'Shortage (<75%)'}
+                  </span>
+                </td>
+              </tr>
+            `;
+          }).join("");
+
+          // Render Overall Percentage
+          const overallPct = totalClassesOverall > 0 ? Math.round((totalPresentOverall / totalClassesOverall) * 100) : 0;
+          document.getElementById("overallPercentage").textContent = `${overallPct}%`;
+          document.getElementById("overallPercentage").style.color = overallPct >= 75 ? 'var(--success)' : 'var(--danger)';
+
+          // Render Logs Table
+          logsBody.innerHTML = records.slice(0, 25).map(r => `
+            <tr>
+              <td>${r.date || "-"}</td>
+              <td>${r.subjectId || "-"}</td>
+              <td>${r.classId || "-"}</td>
+              <td>
+                <span class="badge ${r.status === 'Present' ? 'badge-present' : 'badge-absent'}">
+                  ${r.status || "-"}
+                </span>
+              </td>
+            </tr>
+          `).join("");
+
+        } catch (err) {
+          console.error("Error loading student attendance:", err);
+        }
+      });
+    }
+
+    window.addEventListener("DOMContentLoaded", loadStudentAttendance);
+  </script>
+</body>
+</html>
