@@ -3,8 +3,8 @@
   "version": "1.0.0",
   "description": "Serverless Cloud-Based Student Attendance Management System",
   "scripts": {
-    "start": "npx serve public",
-    "serve": "firebase serve --only hosting",
+    "start": "node server.js",
+    "serve": "node server.js",
     "deploy": "firebase deploy",
     "deploy:hosting": "firebase deploy --only hosting",
     "deploy:rules": "firebase deploy --only firestore:rules"
