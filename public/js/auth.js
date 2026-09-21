@@ -15,16 +15,59 @@ async function loginUser(email, password) {
     const user = userCredential.user;
 
     // Fetch user profile from Firestore 'users' collection to determine role
-    const userDoc = await db.collection("users").doc(user.uid).get();
+    let userDoc = await db.collection("users").doc(user.uid).get();
 
     if (!userDoc.exists) {
-      // If user doc doesn't exist, sign out and throw error
-      await auth.signOut();
-      throw new Error("User record not found in database. Contact your administrator.");
+      console.log("No document found with Document ID = user.uid. Checking by email:", user.email);
+      // Check if user created the document using Auto-ID or their email as the Document ID
+      const emailQuery = await db.collection("users").where("email", "==", user.email).get();
+
+      if (!emailQuery.empty) {
+        const foundDoc = emailQuery.docs[0];
+        const foundData = foundDoc.data();
+        console.log("Found existing record under Document ID:", foundDoc.id);
+
+        try {
+          // Clone/save under user.uid for direct lookup
+          await db.collection("users").doc(user.uid).set({
+            ...foundData,
+            uid: user.uid
+          }, { merge: true });
+          userDoc = await db.collection("users").doc(user.uid).get();
+        } catch (e) {
+          // If write fails, proceed with the found record
+          const role = foundData.role || "admin";
+          sessionStorage.setItem("userRole", role);
+          sessionStorage.setItem("userName", foundData.name || user.email);
+          redirectByRole(role);
+          return;
+        }
+      } else {
+        // No document exists at all. Attempt auto-provisioning as Admin for the first user
+        console.log("Attempting first-time Admin auto-provisioning for UID:", user.uid);
+        try {
+          const adminProfile = {
+            uid: user.uid,
+            name: user.email.split("@")[0].toUpperCase(),
+            email: user.email,
+            role: "admin",
+            createdAt: new Date().toISOString()
+          };
+          await db.collection("users").doc(user.uid).set(adminProfile);
+          userDoc = await db.collection("users").doc(user.uid).get();
+        } catch (provisionErr) {
+          console.warn("Auto-provision failed:", provisionErr);
+          await auth.signOut();
+          throw new Error(
+            `Logged in as ${user.email}, but your profile was not found in Firestore. ` +
+            `In Firestore Console > 'users' collection, create a document with Document ID: ${user.uid} and field role: "admin".`
+          );
+        }
+      }
     }
 
-    const userData = userDoc.data();
-    const role = userData.role;
+    const userData = userDoc.data() || {};
+    const role = userData.role || "admin";
 
     // Save session info
     sessionStorage.setItem("userRole", role);
