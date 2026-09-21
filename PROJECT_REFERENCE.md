@@ -20,10 +20,10 @@ Use this document whenever you need to check something about the project. It cov
 | 9 | Connect Firebase | Done (Config linked in public/js/firebase-config.js) |
 | 10 | Authentication | Done (Admin login verified) |
 | 11 | Admin module | Done (Classes, Subjects, Teachers, Students verified) |
-| 12 | Teacher module | In Progress (Attendance roll-call & submissions) |
-| 13 | Student module | Done (Interface ready) |
-| 14 | Attendance module | Done (Interface ready with duplicate prevention) |
-| 15 | Attendance calculation | Done (Implemented in Student Portal & Reports) |
+| 12 | Teacher module | Done (Attendance roll-call & submissions verified) |
+| 13 | Student module | Done (Student card & percentages verified) |
+| 14 | Attendance module | Done (Duplicate prevention tested & working) |
+| 15 | Attendance calculation | Done (Subject-wise & overall percentage calculation working) |
 | 16 | Cloud Functions | Pending |
 | 17 | Security rules | Done (firestore.rules configured) |
 | 18 | Testing | Pending |
