@@ -1,16 +1,17 @@
 // Firebase Configuration
-// In Phase 6 (Firebase Console setup), you will paste your actual Web App credentials here.
+// Connected to Firebase Project: student-attendance-syste-17716
 
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT_ID.appspot.com",
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyDLk-KdZI47_MWdVXcZuTft-u5HC5GNt9E",
+  authDomain: "student-attendance-syste-17716.firebaseapp.com",
+  projectId: "student-attendance-syste-17716",
+  storageBucket: "student-attendance-syste-17716.firebasestorage.app",
+  messagingSenderId: "606111647215",
+  appId: "1:606111647215:web:984c7c3ce292549d86221a",
+  measurementId: "G-QB12L544K6"
 };
 
-// Initialize Firebase if not already initialized
+// Initialize Firebase
 let auth, db;
 
 try {
@@ -20,7 +21,10 @@ try {
     }
     auth = firebase.auth();
     db = firebase.firestore();
+    console.log("Firebase initialized successfully with project:", firebaseConfig.projectId);
+  } else {
+    console.error("Firebase SDK script not loaded in this document.");
   }
 } catch (error) {
-  console.warn("Firebase initialization warning (replace placeholder config in firebase-config.js):", error.message);
+  console.error("Firebase initialization error:", error);
 }

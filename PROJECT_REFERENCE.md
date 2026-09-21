@@ -14,11 +14,11 @@ Use this document whenever you need to check something about the project. It cov
 | 3 | Architecture | Done |
 | 4 | Database design | Done (Documented in DATABASE_DESIGN.md) |
 | 5 | Install software | Done (Node.js v24 LTS + Firebase CLI installed) |
-| 6 | Create Firebase project | Next |
+| 6 | Create Firebase project | Done (Connected to student-attendance-syste-17716) |
 | 7 | Create project folder | Done (Verified & configured) |
 | 8 | Create frontend | Done (10 HTML pages, modular CSS, Auth & Config JS) |
-| 9 | Connect Firebase | Pending |
-| 10 | Authentication | Pending |
+| 9 | Connect Firebase | Done (Config linked in public/js/firebase-config.js) |
+| 10 | Authentication | Next |
 | 11 | Admin module | Done (Interface ready) |
 | 12 | Teacher module | Done (Interface ready) |
 | 13 | Student module | Done (Interface ready) |
