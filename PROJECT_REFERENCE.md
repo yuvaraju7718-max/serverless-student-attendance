@@ -19,8 +19,8 @@ Use this document whenever you need to check something about the project. It cov
 | 8 | Create frontend | Done (10 HTML pages, modular CSS, Auth & Config JS) |
 | 9 | Connect Firebase | Done (Config linked in public/js/firebase-config.js) |
 | 10 | Authentication | Done (Admin login verified) |
-| 11 | Admin module | In Progress (Testing & Data Population) |
-| 12 | Teacher module | Next |
+| 11 | Admin module | Done (Classes, Subjects, Teachers, Students verified) |
+| 12 | Teacher module | In Progress (Attendance roll-call & submissions) |
 | 13 | Student module | Done (Interface ready) |
 | 14 | Attendance module | Done (Interface ready with duplicate prevention) |
 | 15 | Attendance calculation | Done (Implemented in Student Portal & Reports) |
