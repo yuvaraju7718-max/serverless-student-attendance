@@ -162,6 +162,7 @@
           <td>${s.email || "-"}</td>
           <td><span class="role-badge" style="background:#e0e7ff; color:#3730a3;">${s.classId || "-"}</span></td>
           <td style="text-align: right;">
+            <a href="student-dashboard.html?studentId=${s.id}" class="btn btn-secondary btn-sm" style="padding: 0.2rem 0.6rem; font-size: 0.8rem; margin-right: 0.25rem;">📊 Attendance Card</a>
             <button onclick="deleteStudent('${s.id}')" class="btn btn-danger btn-sm" style="padding: 0.2rem 0.6rem; font-size: 0.8rem;">Delete</button>
           </td>
         </tr>

@@ -114,18 +114,36 @@
         if (!user) return;
 
         try {
-          // Fetch student record
-          const userDoc = await db.collection("users").doc(user.uid).get();
-          const userData = userDoc.data() || {};
+          // Check for URL param ?studentId=xxx, or default to user.uid
+          const urlParams = new URLSearchParams(window.location.search);
+          let targetStudentId = urlParams.get("studentId");
 
-          document.getElementById("studentNameDisplay").textContent = userData.name || user.email;
-          document.getElementById("studentRollDisplay").textContent = userData.rollNumber || "N/A";
-          document.getElementById("studentClassDisplay").textContent = userData.classId || "N/A";
+          let studentProfile = {};
+          if (targetStudentId) {
+            // Fetch student from students collection
+            const stuDoc = await db.collection("students").doc(targetStudentId).get();
+            if (stuDoc.exists) studentProfile = stuDoc.data();
+          } else {
+            // Fetch student from users collection
+            const userDoc = await db.collection("users").doc(user.uid).get();
+            if (userDoc.exists) studentProfile = userDoc.data();
+            targetStudentId = studentProfile.id || user.uid;
+          }
 
-          // Fetch attendance history where studentId == user.uid or rollNumber matches
-          const attendanceQuery = await db.collection("attendance")
-            .where("studentId", "==", user.uid)
+          document.getElementById("studentNameDisplay").textContent = studentProfile.name || user.email;
+          document.getElementById("studentRollDisplay").textContent = studentProfile.rollNumber || "N/A";
+          document.getElementById("studentClassDisplay").textContent = studentProfile.classId || "N/A";
+
+          // Fetch attendance where studentId == targetStudentId or studentUid == user.uid
+          let attendanceQuery = await db.collection("attendance")
+            .where("studentId", "==", targetStudentId)
             .get();
+
+          if (attendanceQuery.empty && !urlParams.get("studentId")) {
+            attendanceQuery = await db.collection("attendance")
+              .where("studentUid", "==", user.uid)
+              .get();
+          }
 
           const logsBody = document.getElementById("attendanceLogsBody");
           const subjectBody = document.getElementById("subjectAttendanceBody");
