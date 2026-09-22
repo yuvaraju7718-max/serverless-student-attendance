@@ -24,10 +24,10 @@ Use this document whenever you need to check something about the project. It cov
 | 13 | Student module | Done (Student card & percentages verified) |
 | 14 | Attendance module | Done (Duplicate prevention tested & working) |
 | 15 | Attendance calculation | Done (Subject-wise & overall percentage calculation working) |
-| 16 | Cloud Functions | Pending |
-| 17 | Security rules | Done (firestore.rules configured) |
-| 18 | Testing | Pending |
-| 19 | Deployment | Pending |
+| 16 | Cloud Functions | Skipped (Free-tier safe: Hosting + Auth + Firestore only) |
+| 17 | Security rules | Done (Deployed to Google Cloud Firestore) |
+| 18 | Testing | In Progress |
+| 19 | Deployment | Done (Live at https://student-attendance-syste-17716.web.app) |
 | 20 | GitHub | In Progress |
 | 21 | Documentation | Done (README.md & Architecture documented) |
 | 22 | PPT | Pending |
