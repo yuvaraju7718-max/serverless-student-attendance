@@ -114,42 +114,97 @@
         if (!user) return;
 
         try {
-          // Check for URL param ?studentId=xxx, or default to user.uid
+          // 1. Resolve student profile from multiple sources (URL, users collection, students collection)
           const urlParams = new URLSearchParams(window.location.search);
-          let targetStudentId = urlParams.get("studentId");
+          const paramStudentId = urlParams.get("studentId");
+          const paramRoll = urlParams.get("rollNumber");
 
           let studentProfile = {};
-          if (targetStudentId) {
-            // Fetch student from students collection
-            const stuDoc = await db.collection("students").doc(targetStudentId).get();
-            if (stuDoc.exists) studentProfile = stuDoc.data();
+          let studentDocData = null;
+
+          // Check users collection first
+          const userDoc = await db.collection("users").doc(user.uid).get();
+          const userData = userDoc.exists ? userDoc.data() : {};
+
+          // Check students collection by URL param, or by email, or by roll number
+          if (paramStudentId) {
+            const byId = await db.collection("students").doc(paramStudentId).get();
+            if (byId.exists) studentDocData = byId.data();
           } else {
-            // Fetch student from users collection
-            const userDoc = await db.collection("users").doc(user.uid).get();
-            if (userDoc.exists) studentProfile = userDoc.data();
-            targetStudentId = studentProfile.id || user.uid;
+            if (user.email) {
+              const byEmail = await db.collection("students").where("email", "==", user.email).get();
+              if (!byEmail.empty) studentDocData = byEmail.docs[0].data();
+            }
+            if (!studentDocData && userData.rollNumber) {
+              const byRoll = await db.collection("students").where("rollNumber", "==", userData.rollNumber).get();
+              if (!byRoll.empty) studentDocData = byRoll.docs[0].data();
+            }
           }
 
-          document.getElementById("studentNameDisplay").textContent = studentProfile.name || user.email;
-          document.getElementById("studentRollDisplay").textContent = studentProfile.rollNumber || "N/A";
-          document.getElementById("studentClassDisplay").textContent = studentProfile.classId || "N/A";
+          const finalName = studentDocData?.name || userData.name || user.email.split("@")[0];
+          const finalRoll = paramRoll || studentDocData?.rollNumber || userData.rollNumber || "";
+          const finalClass = studentDocData?.classId || userData.classId || "";
+          const finalStudentId = paramStudentId || studentDocData?.id || (finalRoll ? `stu_${finalRoll.toLowerCase().replace(/[^a-z0-9]/g, '_')}` : "");
 
-          // Fetch attendance where studentId == targetStudentId or studentUid == user.uid
-          let attendanceQuery = await db.collection("attendance")
-            .where("studentId", "==", targetStudentId)
-            .get();
+          document.getElementById("studentNameDisplay").textContent = finalName;
+          document.getElementById("studentRollDisplay").textContent = finalRoll || "N/A";
+          document.getElementById("studentClassDisplay").textContent = finalClass || "N/A";
 
-          if (attendanceQuery.empty && !urlParams.get("studentId")) {
-            attendanceQuery = await db.collection("attendance")
-              .where("studentUid", "==", user.uid)
-              .get();
+          // 2. Query attendance using all possible identifiers
+          const recordsMap = new Map();
+
+          // Strategy A: Query by rollNumber
+          if (finalRoll) {
+            try {
+              const rollSnap = await db.collection("attendance").where("rollNumber", "==", finalRoll).get();
+              rollSnap.forEach(d => recordsMap.set(d.id, d.data()));
+            } catch (e) { console.warn("Roll query:", e); }
+          }
+
+          // Strategy B: Query by studentId
+          if (finalStudentId && recordsMap.size === 0) {
+            try {
+              const idSnap = await db.collection("attendance").where("studentId", "==", finalStudentId).get();
+              idSnap.forEach(d => recordsMap.set(d.id, d.data()));
+            } catch (e) { console.warn("ID query:", e); }
+          }
+
+          // Strategy C: Query by Auth UID
+          if (recordsMap.size === 0) {
+            try {
+              const uidSnap = await db.collection("attendance").where("studentId", "==", user.uid).get();
+              uidSnap.forEach(d => recordsMap.set(d.id, d.data()));
+            } catch (e) { console.warn("UID query:", e); }
+          }
+
+          // Strategy D: Query by studentEmail
+          if (user.email && recordsMap.size === 0) {
+            try {
+              const emailSnap = await db.collection("attendance").where("studentEmail", "==", user.email).get();
+              emailSnap.forEach(d => recordsMap.set(d.id, d.data()));
+            } catch (e) { console.warn("Email query:", e); }
+          }
+
+          // Strategy E: If class is known, fetch class attendance and match name/roll
+          if (finalClass && recordsMap.size === 0) {
+            try {
+              const classSnap = await db.collection("attendance").where("classId", "==", finalClass).get();
+              classSnap.forEach(d => {
+                const row = d.data();
+                const matchesRoll = finalRoll && row.rollNumber === finalRoll;
+                const matchesName = finalName && row.studentName && row.studentName.toLowerCase() === finalName.toLowerCase();
+                if (matchesRoll || matchesName) {
+                  recordsMap.set(d.id, row);
+                }
+              });
+            } catch (e) { console.warn("Class query:", e); }
           }
 
           const logsBody = document.getElementById("attendanceLogsBody");
           const subjectBody = document.getElementById("subjectAttendanceBody");
 
-          if (attendanceQuery.empty) {
-            logsBody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">No attendance records found yet.</td></tr>`;
+          if (recordsMap.size === 0) {
+            logsBody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">No attendance records found yet for Roll No: ${finalRoll || 'N/A'}. When a teacher marks attendance for your class, it will appear here.</td></tr>`;
             subjectBody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">No subject data available.</td></tr>`;
             document.getElementById("overallPercentage").textContent = "N/A";
             return;
@@ -160,11 +215,8 @@
           let totalClassesOverall = 0;
           let totalPresentOverall = 0;
 
-          const records = [];
-          attendanceQuery.forEach(doc => {
-            const data = doc.data();
-            records.push(data);
-
+          const records = Array.from(recordsMap.values());
+          records.forEach(data => {
             const subj = data.subjectId || "General";
             if (!statsBySubject[subj]) {
               statsBySubject[subj] = { total: 0, present: 0, absent: 0 };

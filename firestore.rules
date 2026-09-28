@@ -57,15 +57,11 @@ service cloud.firestore {
     }
 
     // Attendance:
-    // - Admin: full read/write
-    // - Teacher: can read and submit attendance
-    // - Student: can ONLY read their own attendance, NEVER write/modify
+    // - Admin: full read/write/delete
+    // - Teacher: can read and submit/update attendance
+    // - Student: read-only access to view attendance, CAN NEVER CREATE, EDIT, OR DELETE
     match /attendance/{attendanceId} {
-      allow read: if isAuthenticated() && (
-        isAdmin() || 
-        isTeacher() || 
-        (isStudent() && resource.data.studentId == request.auth.uid)
-      );
+      allow read: if isAuthenticated();
       allow create, update: if isAuthenticated() && (isAdmin() || isTeacher());
       allow delete: if isAdmin();
     }

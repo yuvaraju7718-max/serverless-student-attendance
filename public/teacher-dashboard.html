@@ -98,22 +98,51 @@
         if (!user) return;
 
         try {
-          // Fetch assignments for this teacher
-          const assignmentsSnap = await db.collection("assignments")
-            .where("teacherId", "==", user.uid)
-            .get();
+          // 1. Fetch user data to display name
+          const userDoc = await db.collection("users").doc(user.uid).get();
+          const userData = userDoc.exists ? userDoc.data() : {};
+          const teacherName = userData.name || user.email.split("@")[0];
+          document.getElementById("welcomeTeacherName").textContent = teacherName;
+
+          // 2. Resolve teacher's assignments flexibly (by Auth UID, teacher doc ID, email, or name)
+          const possibleTeacherIds = [user.uid];
+          try {
+            const teacherByEmail = await db.collection("teachers").where("email", "==", user.email).get();
+            teacherByEmail.forEach(d => possibleTeacherIds.push(d.id));
+          } catch (e) {
+            console.warn("Could not query teachers by email:", e);
+          }
+
+          const allAsgnsSnap = await db.collection("assignments").get();
+          const myAssignments = [];
+          const myClassIds = new Set();
+
+          allAsgnsSnap.forEach(doc => {
+            const data = doc.data();
+            const matchesId = possibleTeacherIds.includes(data.teacherId);
+            const matchesEmail = data.teacherEmail && data.teacherEmail.toLowerCase() === user.email.toLowerCase();
+            const matchesName = data.teacherName && teacherName && data.teacherName.toLowerCase() === teacherName.toLowerCase();
+
+            if (matchesId || matchesEmail || matchesName) {
+              myAssignments.push({ id: doc.id, ...data });
+              if (data.classId) myClassIds.add(data.classId);
+            }
+          });
 
           const listContainer = document.getElementById("assignedList");
 
-          if (assignmentsSnap.empty) {
+          if (myAssignments.length === 0) {
             listContainer.innerHTML = `
               <div style="grid-column: 1 / -1; background: #fffbeb; border: 1px solid #fef3c7; padding: 1.5rem; border-radius: 8px; color: #92400e;">
-                <strong>Notice:</strong> No classes or subjects have been assigned to your profile yet. Please contact the administrator.
+                <h4 style="margin-bottom: 0.5rem;">No Specific Assignment Found for ${user.email}</h4>
+                <p style="font-size: 0.9rem; margin-bottom: 1rem;">
+                  The administrator has not yet assigned a class or subject to your faculty profile in the Admin portal.
+                </p>
+                <a href="attendance.html" class="btn btn-primary btn-sm">Go to Attendance Portal &rarr;</a>
               </div>
             `;
           } else {
-            listContainer.innerHTML = assignmentsSnap.docs.map(doc => {
-              const data = doc.data();
+            listContainer.innerHTML = myAssignments.map(data => {
               return `
                 <div class="stat-card">
                   <div class="stat-label">${data.classId || "Class"}</div>
@@ -131,21 +160,35 @@
             }).join("");
           }
 
-          // Fetch recent attendance marked by this teacher
-          const historySnap = await db.collection("attendance")
-            .where("teacherId", "==", user.uid)
-            .orderBy("date", "desc")
-            .limit(10)
-            .get();
-
+          // 3. Fetch recent attendance (sorted in JavaScript to avoid composite index requirement)
           const historyTable = document.getElementById("teacherHistoryTable");
-          if (historySnap.empty) {
-            historyTable.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">No attendance recorded yet.</td></tr>`;
+          let attendanceRecords = [];
+
+          try {
+            const attendanceSnap = await db.collection("attendance").get();
+            attendanceSnap.forEach(doc => {
+              const row = doc.data();
+              const matchesTeacher = possibleTeacherIds.includes(row.teacherId) ||
+                                     (row.teacherEmail && row.teacherEmail.toLowerCase() === user.email.toLowerCase());
+              const matchesClass = myClassIds.has(row.classId);
+
+              if (matchesTeacher || matchesClass) {
+                attendanceRecords.push(row);
+              }
+            });
+          } catch (attErr) {
+            console.warn("Error reading attendance:", attErr);
+          }
+
+          // Sort descending by date in JavaScript
+          attendanceRecords.sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+
+          if (attendanceRecords.length === 0) {
+            historyTable.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">No attendance recorded yet. Click 'Mark Attendance Now' above to take attendance.</td></tr>`;
             return;
           }
 
-          historyTable.innerHTML = historySnap.docs.map(doc => {
-            const row = doc.data();
+          historyTable.innerHTML = attendanceRecords.slice(0, 15).map(row => {
             const isPresent = row.status === "Present";
             return `
               <tr>
@@ -163,7 +206,8 @@
           }).join("");
 
         } catch (err) {
-          console.warn("Error fetching teacher dashboard data:", err);
+          console.error("Error loading teacher dashboard:", err);
+          document.getElementById("teacherHistoryTable").innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--danger); padding: 1.5rem;">Could not load records: ${err.message}</td></tr>`;
         }
       });
     }

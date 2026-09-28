@@ -156,16 +156,42 @@
           let classesSnap, subjectsSnap;
 
           if (role === "teacher") {
-            // Load assigned classes and subjects
-            const asgnSnap = await db.collection("assignments").where("teacherId", "==", user.uid).get();
+            // Find all teacher assignments flexibly
+            const possibleTeacherIds = [user.uid];
+            try {
+              const teacherByEmail = await db.collection("teachers").where("email", "==", user.email).get();
+              teacherByEmail.forEach(d => possibleTeacherIds.push(d.id));
+            } catch (e) {
+              console.warn("Could not query teachers collection:", e);
+            }
+
+            const allAsgns = await db.collection("assignments").get();
             const classSet = new Set();
             const subjectSet = new Set();
 
-            asgnSnap.forEach(doc => {
+            allAsgns.forEach(doc => {
               const d = doc.data();
-              if (d.classId) classSet.add(d.classId);
-              if (d.subjectId) subjectSet.add(JSON.stringify({ id: d.subjectId, name: d.subjectName || d.subjectId }));
+              const isMine = (
+                possibleTeacherIds.includes(d.teacherId) ||
+                (d.teacherEmail && d.teacherEmail.toLowerCase() === user.email.toLowerCase()) ||
+                (d.teacherName && userDoc.data().name && d.teacherName.toLowerCase() === userDoc.data().name.toLowerCase())
+              );
+              if (isMine) {
+                if (d.classId) classSet.add(d.classId);
+                if (d.subjectId) subjectSet.add(JSON.stringify({ id: d.subjectId, name: d.subjectName || d.subjectId }));
+              }
             });
+
+            // If no specific assignment found, load all classes & subjects so teacher is not blocked
+            if (classSet.size === 0) {
+              showAlert("Notice: No specific class assignment found for your account. Showing all classes so you can mark attendance.", "info");
+              const [allClasses, allSubjects] = await Promise.all([
+                db.collection("classes").get(),
+                db.collection("subjects").get()
+              ]);
+              allClasses.forEach(d => classSet.add(d.id));
+              allSubjects.forEach(d => subjectSet.add(JSON.stringify({ id: d.id, name: d.data().name || d.id })));
+            }
 
             classSelect.innerHTML = '<option value="">-- Choose Class --</option>' + 
               Array.from(classSet).map(c => `<option value="${c}" ${c === preClass ? 'selected' : ''}>${c}</option>`).join("");
@@ -340,12 +366,14 @@
           batch.set(docRef, {
             id: docId,
             studentId: student.id,
-            studentUid: student.uid,
+            studentUid: student.uid || student.id,
             studentName: student.name,
+            studentEmail: student.email || "",
             rollNumber: student.rollNumber,
             classId: classId,
             subjectId: subjectId,
             teacherId: teacherId,
+            teacherEmail: auth.currentUser ? auth.currentUser.email : "",
             date: date,
             status: student.status,
             updatedAt: now,
