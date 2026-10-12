@@ -320,3 +320,50 @@ footer {
   background: var(--surface);
   margin-top: auto;
 }
+
+/* User & Profile Avatars */
+.avatar-circle {
+  border-radius: 50%;
+  object-fit: cover;
+  display: inline-block;
+  vertical-align: middle;
+  background-color: var(--primary-light);
+  border: 2px solid var(--border);
+  flex-shrink: 0;
+}
+
+.avatar-sm {
+  width: 32px;
+  height: 32px;
+  font-size: 0.85rem;
+  line-height: 28px;
+  text-align: center;
+  font-weight: 600;
+  color: var(--primary);
+}
+
+.avatar-md {
+  width: 44px;
+  height: 44px;
+  font-size: 1.1rem;
+  line-height: 40px;
+  text-align: center;
+  font-weight: 600;
+  color: var(--primary);
+}
+
+.avatar-lg {
+  width: 90px;
+  height: 90px;
+  font-size: 2rem;
+  line-height: 86px;
+  text-align: center;
+  font-weight: bold;
+  color: var(--primary);
+}
+
+.user-badge-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+}

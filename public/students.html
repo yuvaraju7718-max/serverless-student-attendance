@@ -159,18 +159,29 @@
         return;
       }
 
-      tbody.innerHTML = list.map(s => `
-        <tr>
-          <td><strong>${s.rollNumber || "-"}</strong></td>
-          <td>${s.name || "-"}</td>
-          <td>${s.email || "-"}</td>
-          <td><span class="role-badge" style="background:#e0e7ff; color:#3730a3;">${s.classId || "-"}</span></td>
-          <td style="text-align: right;">
-            <a href="student-dashboard.html?studentId=${s.id}" class="btn btn-secondary btn-sm" style="padding: 0.2rem 0.6rem; font-size: 0.8rem; margin-right: 0.25rem;">📊 Attendance Card</a>
-            <button onclick="deleteStudent('${s.id}')" class="btn btn-danger btn-sm" style="padding: 0.2rem 0.6rem; font-size: 0.8rem;">Delete</button>
-          </td>
-        </tr>
-      `).join("");
+      tbody.innerHTML = list.map(s => {
+        const photoHtml = s.photoUrl 
+          ? `<img src="${s.photoUrl}" alt="${s.name}" class="avatar-circle avatar-sm" />` 
+          : `<div class="avatar-circle avatar-sm" style="display:inline-flex; align-items:center; justify-content:center;">${(s.name || 'S').charAt(0).toUpperCase()}</div>`;
+
+        return `
+          <tr>
+            <td><strong>${s.rollNumber || "-"}</strong></td>
+            <td>
+              <div class="user-badge-cell">
+                ${photoHtml}
+                <span>${s.name || "-"}</span>
+              </div>
+            </td>
+            <td>${s.email || "-"}</td>
+            <td><span class="role-badge" style="background:#e0e7ff; color:#3730a3;">${s.classId || "-"}</span></td>
+            <td style="text-align: right;">
+              <a href="student-dashboard.html?studentId=${s.id}" class="btn btn-secondary btn-sm" style="padding: 0.2rem 0.6rem; font-size: 0.8rem; margin-right: 0.25rem;">📊 Attendance Card</a>
+              <button onclick="deleteStudent('${s.id}')" class="btn btn-danger btn-sm" style="padding: 0.2rem 0.6rem; font-size: 0.8rem;">Delete</button>
+            </td>
+          </tr>
+        `;
+      }).join("");
     }
 
     function filterStudents() {

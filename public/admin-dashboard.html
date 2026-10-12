@@ -152,13 +152,33 @@
           return;
         }
 
+        // Map student photoUrls
+        const studentPhotos = {};
+        studentsSnap.forEach(d => {
+          const s = d.data();
+          if (s.photoUrl) {
+            studentPhotos[d.id] = s.photoUrl;
+            if (s.rollNumber) studentPhotos[s.rollNumber] = s.photoUrl;
+          }
+        });
+
         tableBody.innerHTML = attendanceSnap.docs.map(doc => {
           const data = doc.data();
           const isPresent = data.status === "Present";
+          const photo = data.photoUrl || studentPhotos[data.studentId] || studentPhotos[data.rollNumber] || "";
+          const photoHtml = photo 
+            ? `<img src="${photo}" alt="Student" class="avatar-circle avatar-sm" />` 
+            : `<div class="avatar-circle avatar-sm" style="display:inline-flex; align-items:center; justify-content:center;">${(data.studentName || data.rollNumber || 'S').charAt(0).toUpperCase()}</div>`;
+
           return `
             <tr>
               <td>${data.date || "-"}</td>
-              <td><strong>${data.rollNumber || data.studentId || "-"}</strong></td>
+              <td>
+                <div class="user-badge-cell">
+                  ${photoHtml}
+                  <strong>${data.rollNumber || data.studentId || "-"}</strong>
+                </div>
+              </td>
               <td>${data.classId || "-"}</td>
               <td>${data.subjectId || "-"}</td>
               <td>

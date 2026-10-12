@@ -254,10 +254,20 @@
             const pct = item.total > 0 ? Math.round((item.present / item.total) * 100) : 0;
             const isEligible = pct >= 75;
 
+            const photo = item.student.photoUrl || "";
+            const photoHtml = photo 
+              ? `<img src="${photo}" alt="${item.student.name}" class="avatar-circle avatar-sm" />` 
+              : `<div class="avatar-circle avatar-sm" style="display:inline-flex; align-items:center; justify-content:center;">${(item.student.name || 'S').charAt(0).toUpperCase()}</div>`;
+
             return `
               <tr>
                 <td><strong>${item.student.rollNumber || "-"}</strong></td>
-                <td>${item.student.name || "-"}</td>
+                <td>
+                  <div class="user-badge-cell">
+                    ${photoHtml}
+                    <span>${item.student.name || "-"}</span>
+                  </div>
+                </td>
                 <td style="text-align: center;">${item.total}</td>
                 <td style="text-align: center; color: var(--success); font-weight: 600;">${item.present}</td>
                 <td style="text-align: center; color: var(--danger); font-weight: 600;">${item.absent}</td>

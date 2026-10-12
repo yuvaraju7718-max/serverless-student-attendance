@@ -18,7 +18,7 @@
       🎓 Cloud Attendance &bull; Profile
     </a>
     <nav class="nav-links">
-      <a href="javascript:history.back()" class="nav-link">&larr; Back</a>
+      <a href="javascript:history.back()" class="nav-link">&larr; Back to Dashboard</a>
     </nav>
     <div class="nav-user">
       <button onclick="logoutUser()" class="btn btn-secondary btn-sm">Sign Out</button>
@@ -26,11 +26,33 @@
   </header>
 
   <main class="container" style="max-width: 680px;">
+    <div id="statusAlert" class="alert"></div>
+
     <div class="card" style="margin-top: 1rem;">
       <div style="text-align: center; padding-bottom: 1.5rem; border-bottom: 1px solid var(--border); margin-bottom: 1.5rem;">
-        <div style="width: 80px; height: 80px; border-radius: 50%; background: var(--primary-light); color: var(--primary); font-size: 2.25rem; font-weight: bold; display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem auto;" id="avatarInitial">
-          U
+        
+        <!-- Profile Picture Container -->
+        <div style="position: relative; width: 104px; height: 104px; margin: 0 auto 1rem auto;">
+          <img id="profileImage" src="" alt="Profile Photo" class="avatar-circle avatar-lg" style="width: 104px; height: 104px; display: none;" />
+          <div id="avatarInitial" class="avatar-circle avatar-lg" style="width: 104px; height: 104px; line-height: 100px; margin: 0 auto; display: flex; align-items: center; justify-content: center;">
+            U
+          </div>
         </div>
+
+        <!-- Upload Photo Control -->
+        <div style="margin-bottom: 1rem;">
+          <input type="file" id="photoInput" accept="image/*" style="display: none;" onchange="handlePhotoUpload(event)" />
+          <button type="button" onclick="document.getElementById('photoInput').click()" class="btn btn-secondary btn-sm" id="uploadBtn">
+            📷 Upload Profile Photo
+          </button>
+          <button type="button" onclick="removePhoto()" class="btn btn-danger btn-sm" id="removeBtn" style="display: none; margin-left: 0.5rem;">
+            Remove
+          </button>
+          <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.4rem;">
+            Supports JPG, PNG (automatically resized & saved to your profile)
+          </p>
+        </div>
+
         <h2 id="profileName" style="margin-bottom: 0.25rem;">User Account</h2>
         <span id="profileRoleBadge" class="role-badge role-admin">Role</span>
       </div>
@@ -72,33 +94,69 @@
   <script>
     protectPage([]);
 
+    let currentUserData = {};
+    let currentUserUid = "";
+    let currentUserRole = "";
+
+    function showAlert(msg, type = "info") {
+      const alert = document.getElementById("statusAlert");
+      alert.className = `alert alert-${type} show`;
+      alert.textContent = msg;
+    }
+
+    function setPhotoDisplay(photoUrl, name) {
+      const img = document.getElementById("profileImage");
+      const init = document.getElementById("avatarInitial");
+      const removeBtn = document.getElementById("removeBtn");
+
+      if (photoUrl) {
+        img.src = photoUrl;
+        img.style.display = "block";
+        init.style.display = "none";
+        removeBtn.style.display = "inline-block";
+      } else {
+        img.style.display = "none";
+        init.style.display = "flex";
+        init.textContent = (name || "U").charAt(0).toUpperCase();
+        removeBtn.style.display = "none";
+      }
+    }
+
     auth.onAuthStateChanged(async (user) => {
       if (!user) return;
+      currentUserUid = user.uid;
 
       try {
-        const userDoc = await db.collection("users").doc(user.uid).get();
+        let userDoc = await db.collection("users").doc(user.uid).get();
+        if (!userDoc.exists) {
+          const emailSnap = await db.collection("users").where("email", "==", user.email).get();
+          if (!emailSnap.empty) userDoc = emailSnap.docs[0];
+        }
+
         const data = userDoc.exists ? userDoc.data() : {};
+        currentUserData = data;
+        currentUserRole = data.role || "student";
 
         const name = data.name || user.email;
-        const role = data.role || "student";
-
         document.getElementById("profileName").textContent = name;
-        document.getElementById("avatarInitial").textContent = name.charAt(0).toUpperCase();
         document.getElementById("profileEmail").textContent = user.email;
         document.getElementById("profileUid").textContent = user.uid;
 
         const roleBadge = document.getElementById("profileRoleBadge");
-        roleBadge.textContent = role;
-        roleBadge.className = `role-badge role-${role}`;
+        roleBadge.textContent = currentUserRole;
+        roleBadge.className = `role-badge role-${currentUserRole}`;
 
-        if (role === "teacher" && data.department) {
+        // Load photo
+        setPhotoDisplay(data.photoUrl, name);
+
+        if (currentUserRole === "teacher" && data.department) {
           document.getElementById("extraFieldContainer1").style.display = "block";
           document.getElementById("extraFieldLabel1").textContent = "Department";
           document.getElementById("extraFieldValue1").textContent = data.department;
-        } else if (role === "student") {
+        } else if (currentUserRole === "student") {
           if (data.rollNumber) {
             document.getElementById("extraFieldContainer1").style.display = "block";
-            document.getElementById("extraFieldLabel1").textContent = "Roll Number";
+            document.getElementById("extraFieldLabel1").textContent = "USN / Roll Number";
             document.getElementById("extraFieldValue1").textContent = data.rollNumber;
           }
           if (data.classId) {
@@ -111,6 +169,100 @@
         console.error("Error loading profile:", err);
       }
     });
+
+    // Resize and compress image to base64 data URI
+    function resizeImage(file, maxWidth, maxHeight, quality, callback) {
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const img = new Image();
+        img.onload = function() {
+          let width = img.width;
+          let height = img.height;
+          if (width > height) {
+            if (width > maxWidth) {
+              height = Math.round((height * maxWidth) / width);
+              width = maxWidth;
+            }
+          } else {
+            if (height > maxHeight) {
+              width = Math.round((width * maxHeight) / height);
+              height = maxHeight;
+            }
+          }
+          const canvas = document.createElement("canvas");
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(img, 0, 0, width, height);
+          const dataUrl = canvas.toDataURL("image/jpeg", quality);
+          callback(dataUrl);
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    async function handlePhotoUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const uploadBtn = document.getElementById("uploadBtn");
+      uploadBtn.disabled = true;
+      uploadBtn.textContent = "Processing photo...";
+
+      resizeImage(file, 200, 200, 0.8, async (photoDataUrl) => {
+        try {
+          // 1. Update users collection
+          await db.collection("users").doc(currentUserUid).set({
+            photoUrl: photoDataUrl
+          }, { merge: true });
+
+          // 2. Also update in teachers or students collection if applicable
+          if (currentUserRole === "teacher") {
+            const tchSnap = await db.collection("teachers").where("email", "==", currentUserData.email).get();
+            tchSnap.forEach(d => d.ref.set({ photoUrl: photoDataUrl }, { merge: true }));
+          } else if (currentUserRole === "student") {
+            const stuSnap = await db.collection("students").where("email", "==", currentUserData.email).get();
+            stuSnap.forEach(d => d.ref.set({ photoUrl: photoDataUrl }, { merge: true }));
+            if (currentUserData.rollNumber) {
+              const rollSnap = await db.collection("students").where("rollNumber", "==", currentUserData.rollNumber).get();
+              rollSnap.forEach(d => d.ref.set({ photoUrl: photoDataUrl }, { merge: true }));
+            }
+          }
+
+          setPhotoDisplay(photoDataUrl, currentUserData.name);
+          showAlert("Profile photo updated successfully!", "success");
+        } catch (err) {
+          console.error("Photo save error:", err);
+          showAlert("Failed to save profile photo: " + err.message, "danger");
+        } finally {
+          uploadBtn.disabled = false;
+          uploadBtn.textContent = "📷 Upload Profile Photo";
+        }
+      });
+    }
+
+    async function removePhoto() {
+      if (!confirm("Are you sure you want to remove your profile photo?")) return;
+      try {
+        await db.collection("users").doc(currentUserUid).set({
+          photoUrl: ""
+        }, { merge: true });
+
+        if (currentUserRole === "teacher") {
+          const tchSnap = await db.collection("teachers").where("email", "==", currentUserData.email).get();
+          tchSnap.forEach(d => d.ref.set({ photoUrl: "" }, { merge: true }));
+        } else if (currentUserRole === "student") {
+          const stuSnap = await db.collection("students").where("email", "==", currentUserData.email).get();
+          stuSnap.forEach(d => d.ref.set({ photoUrl: "" }, { merge: true }));
+        }
+
+        setPhotoDisplay("", currentUserData.name);
+        showAlert("Profile photo removed.", "info");
+      } catch (err) {
+        showAlert("Error removing photo: " + err.message, "danger");
+      }
+    }
   </script>
 </body>
 </html>

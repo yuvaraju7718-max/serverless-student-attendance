@@ -31,10 +31,16 @@
   </header>
 
   <main class="container">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
-      <div>
-        <h1 style="font-size: 1.75rem;">Welcome, <span id="welcomeTeacherName">Faculty Member</span></h1>
-        <p style="color: var(--text-muted); font-size: 0.95rem;">Select your assigned class and subject to record attendance or view analytics.</p>
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+      <div style="display: flex; align-items: center; gap: 1rem;">
+        <div id="teacherAvatarContainer" style="width: 56px; height: 56px;">
+          <img id="teacherAvatarImg" src="" alt="Teacher" class="avatar-circle avatar-md" style="width: 56px; height: 56px; display: none;" />
+          <div id="teacherAvatarInitial" class="avatar-circle avatar-md" style="width: 56px; height: 56px; line-height: 52px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem;">T</div>
+        </div>
+        <div>
+          <h1 style="font-size: 1.75rem;">Welcome, <span id="welcomeTeacherName">Faculty Member</span></h1>
+          <p style="color: var(--text-muted); font-size: 0.95rem;">Select your assigned class and subject to record attendance or view analytics.</p>
+        </div>
       </div>
       <div>
         <a href="attendance.html" class="btn btn-primary">✏️ Mark Attendance Now</a>
@@ -98,11 +104,24 @@
         if (!user) return;
 
         try {
-          // 1. Fetch user data to display name
+          // 1. Fetch user data to display name and photo
           const userDoc = await db.collection("users").doc(user.uid).get();
           const userData = userDoc.exists ? userDoc.data() : {};
           const teacherName = userData.name || user.email.split("@")[0];
           document.getElementById("welcomeTeacherName").textContent = teacherName;
+
+          // Render teacher avatar
+          const avatarImg = document.getElementById("teacherAvatarImg");
+          const avatarInit = document.getElementById("teacherAvatarInitial");
+          if (userData.photoUrl) {
+            avatarImg.src = userData.photoUrl;
+            avatarImg.style.display = "block";
+            avatarInit.style.display = "none";
+          } else {
+            avatarImg.style.display = "none";
+            avatarInit.style.display = "flex";
+            avatarInit.textContent = teacherName.charAt(0).toUpperCase();
+          }
 
           // 2. Resolve teacher's assignments flexibly (by Auth UID, teacher doc ID, email, or name)
           const possibleTeacherIds = [user.uid];

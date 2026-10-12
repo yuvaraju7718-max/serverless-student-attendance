@@ -277,6 +277,7 @@
             uid: s.uid || d.id,
             rollNumber: s.rollNumber || "N/A",
             name: s.name || "Unnamed Student",
+            photoUrl: s.photoUrl || "",
             status: existingMap[d.id] || "Present" // Default to Present or existing status
           };
         });
@@ -302,23 +303,34 @@
 
     // Render roster table
     function renderRoster() {
-      studentRosterBody.innerHTML = currentStudents.map((s, idx) => `
-        <tr>
-          <td>${idx + 1}</td>
-          <td><strong>${s.rollNumber}</strong></td>
-          <td>${s.name}</td>
-          <td style="text-align: center;">
-            <label style="margin-right: 1rem; cursor: pointer; color: var(--success); font-weight: 600;">
-              <input type="radio" name="status_${s.id}" value="Present" ${s.status === 'Present' ? 'checked' : ''} onchange="updateStatus('${s.id}', 'Present')">
-              Present
-            </label>
-            <label style="cursor: pointer; color: var(--danger); font-weight: 600;">
-              <input type="radio" name="status_${s.id}" value="Absent" ${s.status === 'Absent' ? 'checked' : ''} onchange="updateStatus('${s.id}', 'Absent')">
-              Absent
-            </label>
-          </td>
-        </tr>
-      `).join("");
+      studentRosterBody.innerHTML = currentStudents.map((s, idx) => {
+        const photoHtml = s.photoUrl 
+          ? `<img src="${s.photoUrl}" alt="${s.name}" class="avatar-circle avatar-sm" />` 
+          : `<div class="avatar-circle avatar-sm" style="display:inline-flex; align-items:center; justify-content:center;">${(s.name || 'S').charAt(0).toUpperCase()}</div>`;
+
+        return `
+          <tr>
+            <td>${idx + 1}</td>
+            <td><strong>${s.rollNumber}</strong></td>
+            <td>
+              <div class="user-badge-cell">
+                ${photoHtml}
+                <span>${s.name}</span>
+              </div>
+            </td>
+            <td style="text-align: center;">
+              <label style="margin-right: 1rem; cursor: pointer; color: var(--success); font-weight: 600;">
+                <input type="radio" name="status_${s.id}" value="Present" ${s.status === 'Present' ? 'checked' : ''} onchange="updateStatus('${s.id}', 'Present')">
+                Present
+              </label>
+              <label style="cursor: pointer; color: var(--danger); font-weight: 600;">
+                <input type="radio" name="status_${s.id}" value="Absent" ${s.status === 'Absent' ? 'checked' : ''} onchange="updateStatus('${s.id}', 'Absent')">
+                Absent
+              </label>
+            </td>
+          </tr>
+        `;
+      }).join("");
 
       updateCounts();
     }

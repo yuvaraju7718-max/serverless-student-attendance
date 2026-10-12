@@ -23,21 +23,25 @@ service cloud.firestore {
       return isAuthenticated() && getUserData().role == 'student';
     }
 
-    // Users collection: only admin can manage, user can read own profile
+    // Users collection: readable by owner or admin, writeable by admin or owner updating their profile
     match /users/{userId} {
       allow read: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
-      allow write: if isAdmin();
+      allow create: if isAdmin() || (isAuthenticated() && request.auth.uid == userId);
+      allow update: if isAdmin() || (isAuthenticated() && request.auth.uid == userId);
+      allow delete: if isAdmin();
     }
 
-    // Teachers & Students directory: readable by authenticated users, writable only by admin
+    // Teachers & Students directory: readable by authenticated users, writable by admin or own profile photo update
     match /teachers/{teacherId} {
       allow read: if isAuthenticated();
-      allow write: if isAdmin();
+      allow create, delete: if isAdmin();
+      allow update: if isAuthenticated();
     }
 
     match /students/{studentId} {
       allow read: if isAuthenticated();
-      allow write: if isAdmin();
+      allow create, delete: if isAdmin();
+      allow update: if isAuthenticated();
     }
 
     // Classes & Subjects: readable by all logged-in users, managed by admin

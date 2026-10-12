@@ -144,7 +144,14 @@ function protectPage(allowedRoles = []) {
       // Update UI elements if present on the page
       const userNameDisplay = document.getElementById("navUserName");
       const userRoleDisplay = document.getElementById("navUserRole");
-      if (userNameDisplay) userNameDisplay.textContent = userData.name || user.email;
+      if (userNameDisplay) {
+        const displayName = userData.name || user.email;
+        if (userData.photoUrl) {
+          userNameDisplay.innerHTML = `<img src="${userData.photoUrl}" alt="Avatar" class="avatar-circle avatar-sm" style="margin-right: 0.35rem;" /> ${displayName}`;
+        } else {
+          userNameDisplay.textContent = displayName;
+        }
+      }
       if (userRoleDisplay) {
         userRoleDisplay.textContent = userRole;
         userRoleDisplay.className = `role-badge role-${userRole}`;

@@ -210,9 +210,18 @@
             </span>
           `).join("") || '<span style="color:var(--text-muted); font-size:0.85rem;">None assigned</span>';
 
+          const photoHtml = t.photoUrl 
+            ? `<img src="${t.photoUrl}" alt="${t.name}" class="avatar-circle avatar-sm" />` 
+            : `<div class="avatar-circle avatar-sm" style="display:inline-flex; align-items:center; justify-content:center;">${(t.name || 'T').charAt(0).toUpperCase()}</div>`;
+
           return `
             <tr>
-              <td><strong>${t.name}</strong></td>
+              <td>
+                <div class="user-badge-cell">
+                  ${photoHtml}
+                  <strong>${t.name}</strong>
+                </div>
+              </td>
               <td>${t.email}</td>
               <td>${t.department || "-"}</td>
               <td>${badges}</td>
