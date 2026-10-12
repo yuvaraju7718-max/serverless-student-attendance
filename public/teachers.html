@@ -56,8 +56,8 @@
         </div>
 
         <div class="form-group" style="margin-bottom: 0;">
-          <label class="form-label" for="teacherEmail">Email Address</label>
-          <input type="email" id="teacherEmail" class="form-control" placeholder="alan@college.edu" required />
+          <label class="form-label" for="teacherEmail">Institutional Email (@clg.ac.in)</label>
+          <input type="email" id="teacherEmail" class="form-control" placeholder="teacher@clg.ac.in" required pattern="^[a-zA-Z0-9._%+-]+@clg\.ac\.in$" title="Email must end with @clg.ac.in" />
         </div>
 
         <div class="form-group" style="margin-bottom: 0;">
@@ -234,6 +234,13 @@
       const name = document.getElementById("teacherName").value.trim();
       const email = document.getElementById("teacherEmail").value.trim().toLowerCase();
       const department = document.getElementById("teacherDept").value.trim();
+
+      // Enforce Institutional Email Domain (@clg.ac.in)
+      if (!email.endsWith("@clg.ac.in")) {
+        alert("❌ Invalid Email Domain!\n\nFaculty members must have an official institutional email ending with @clg.ac.in\n(e.g. professor@clg.ac.in).");
+        showAlert("Error: Only institutional emails ending with @clg.ac.in are allowed.", "danger");
+        return;
+      }
 
       try {
         const teacherId = `tch_${email.split("@")[0].replace(/[^a-z0-9]/g, '_')}`;

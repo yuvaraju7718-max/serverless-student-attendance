@@ -60,8 +60,8 @@
         </div>
 
         <div class="form-group" style="margin-bottom: 0;">
-          <label class="form-label" for="studentEmail">Email Address</label>
-          <input type="email" id="studentEmail" class="form-control" placeholder="rahul@college.edu" required />
+          <label class="form-label" for="studentEmail">Institutional Email (@clg.ac.in)</label>
+          <input type="email" id="studentEmail" class="form-control" placeholder="student@clg.ac.in" required pattern="^[a-zA-Z0-9._%+-]+@clg\.ac\.in$" title="Email must end with @clg.ac.in" />
         </div>
 
         <div class="form-group" style="margin-bottom: 0;">
@@ -193,6 +193,14 @@
       const name = document.getElementById("studentName").value.trim();
       const email = document.getElementById("studentEmail").value.trim().toLowerCase();
       const classId = document.getElementById("studentClass").value;
+
+      // Enforce Institutional Email Domain (@clg.ac.in)
+      if (!email.endsWith("@clg.ac.in")) {
+        alert("❌ Invalid Email Domain!\n\nStudents must have an official institutional email ending with @clg.ac.in\n(e.g. username@clg.ac.in).");
+        showAlert("Error: Only institutional emails ending with @clg.ac.in are allowed.", "danger");
+        saveBtn.disabled = false;
+        return;
+      }
 
       // Direct client-side Primary Key check against loaded records
       const duplicateClient = allStudents.find(s => 
