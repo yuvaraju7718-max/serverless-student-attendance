@@ -156,43 +156,48 @@
       const name = document.getElementById("subjectName").value.trim();
       const department = document.getElementById("subjectDept").value.trim();
 
-      // 1. Client-side duplicate course code check
-      const duplicateClient = allSubjects.find(s => s.code && s.code.trim().toUpperCase() === code);
+      // Primary Key ID formatted directly from Course Code (e.g. CS501, 21CS51)
+      const primaryKeyId = code.replace(/[^A-Z0-9]/g, '-').toUpperCase();
+
+      // 1. Client-side check against all currently loaded subjects
+      const duplicateClient = allSubjects.find(s => 
+        (s.code && s.code.trim().toUpperCase() === code) ||
+        (s.id && s.id.toUpperCase() === primaryKeyId)
+      );
       if (duplicateClient) {
-        alert(`❌ Duplicate Course Code Rejected!\n\nA subject with Course Code "${code}" is already registered: ${duplicateClient.name} (${duplicateClient.department || '-'}).\n\nCourse Code is unique and cannot be duplicated.`);
-        showAlert(`Error: Course Code "${code}" is already registered (${duplicateClient.name}). Duplicate not allowed.`, "danger");
+        alert(`❌ Duplicate Subject Code Rejected!\n\nSubject Code "${code}" is the PRIMARY KEY and already exists: "${duplicateClient.name}" (${duplicateClient.department || '-'}).\n\nDuplicate Subject Codes are not allowed.`);
+        showAlert(`Error: Subject Code "${code}" already registered for "${duplicateClient.name}". Duplicate rejected.`, "danger");
         if (saveBtn) saveBtn.disabled = false;
         return;
       }
 
       try {
-        const subjectId = `sub_${code.replace(/[^A-Z0-9]/g, '_').toLowerCase()}`;
-
-        // 2. Direct Firestore Primary Key check
-        const docSnap = await db.collection("subjects").doc(subjectId).get();
+        // 2. Direct Firestore Primary Key document lookup
+        const docSnap = await db.collection("subjects").doc(primaryKeyId).get();
         if (docSnap.exists) {
           const existing = docSnap.data();
-          alert(`❌ Duplicate Course Code in Database!\n\nSubject "${existing.name || code}" already has code "${code}".`);
-          showAlert(`Error: Course Code "${code}" already exists in database. Duplicate rejected.`, "danger");
+          alert(`❌ Duplicate Subject Code in Database!\n\nSubject Code "${code}" already belongs to "${existing.name || code}".\n\nSubject Code is the PRIMARY KEY and must be unique.`);
+          showAlert(`Error: Subject Code "${code}" already exists in database. Duplicate rejected.`, "danger");
           if (saveBtn) saveBtn.disabled = false;
           return;
         }
 
-        // 3. Firestore query check by code
+        // 3. Query check by code field
         const querySnap = await db.collection("subjects").where("code", "==", code).get();
         if (!querySnap.empty) {
           const existing = querySnap.docs[0].data();
-          alert(`❌ Duplicate Course Code: Course code "${code}" already registered for "${existing.name}".`);
-          showAlert(`Error: Course Code "${code}" already registered. Duplicate rejected.`, "danger");
+          alert(`❌ Duplicate Subject Code: Code "${code}" already belongs to "${existing.name}". Duplicate rejected.`);
+          showAlert(`Error: Subject Code "${code}" already registered. Duplicate rejected.`, "danger");
           if (saveBtn) saveBtn.disabled = false;
           return;
         }
 
-        await db.collection("subjects").doc(subjectId).set({
-          id: subjectId,
-          code,
-          name,
-          department,
+        // Save using Course Code as Primary Key ID
+        await db.collection("subjects").doc(primaryKeyId).set({
+          id: primaryKeyId,
+          code: code,
+          name: name,
+          department: department,
           createdAt: new Date().toISOString()
         });
 
@@ -201,6 +206,7 @@
         toggleSubjectForm();
         loadSubjects();
       } catch (err) {
+        console.error("Save subject error:", err);
         showAlert("Failed to save subject: " + err.message, "danger");
       } finally {
         if (saveBtn) saveBtn.disabled = false;
