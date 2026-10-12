@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Cleanup Sanjana</title>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+</head>
+<body style="font-family: sans-serif; padding: 2rem;">
+  <h2>Student Cleanup Tool</h2>
+  <div id="status" style="margin-top: 1rem; line-height: 1.6;">Connecting to Firestore...</div>
+
+  <script src="js/firebase-config.js"></script>
+  <script>
+    async function runCleanup() {
+      const statusDiv = document.getElementById("status");
+      statusDiv.innerHTML = "<p>Scanning collections for <b>Sanjana</b>...</p>";
+
+      const collections = ["attendance", "students", "users"];
+      let count = 0;
+
+      for (const col of collections) {
+        try {
+          const snap = await db.collection(col).get();
+          for (const doc of snap.docs) {
+            const data = doc.data();
+            const text = JSON.stringify(data).toLowerCase();
+            const docId = doc.id.toLowerCase();
+
+            if (text.includes("sanjana") || docId.includes("sanjana")) {
+              await db.collection(col).doc(doc.id).delete();
+              count++;
+              statusDiv.innerHTML += `<p style="color: green;">✔ Deleted document from <b>${col}</b>: <code>${doc.id}</code> (${data.name || data.studentName || ''} - ${data.rollNumber || ''})</p>`;
+            }
+          }
+        } catch (err) {
+          statusDiv.innerHTML += `<p style="color: red;">Error in ${col}: ${err.message}</p>`;
+        }
+      }
+
+      if (count === 0) {
+        statusDiv.innerHTML += "<h3 style='color: blue;'>No records found with name 'Sanjana' (already deleted).</h3>";
+      } else {
+        statusDiv.innerHTML += `<h3 style="color: green;">🎉 Done! Removed all ${count} records associated with Sanjana.</h3>`;
+      }
+    }
+
+    window.addEventListener("DOMContentLoaded", runCleanup);
+  </script>
+</body>
+</html>
