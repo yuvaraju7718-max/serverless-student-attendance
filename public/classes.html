@@ -152,12 +152,22 @@
       const semester = document.getElementById("classSemester").value.trim();
 
       try {
-        const classId = name.replace(/[^a-zA-Z0-9]/g, '-').toUpperCase();
+        const cleanName = name.replace(/[^a-zA-Z0-9]/g, '-').toUpperCase();
+        const cleanDept = (department || "").replace(/[^a-zA-Z0-9]/g, '-').toUpperCase();
+        const cleanSem = semester ? `SEM${semester}` : "";
+        
+        // Composite unique ID ensuring any change in Name, Department, or Semester creates a distinct class
+        const parts = [cleanName];
+        if (cleanDept) parts.push(cleanDept);
+        if (cleanSem) parts.push(cleanSem);
+        const classId = parts.join("-");
+
         await db.collection("classes").doc(classId).set({
           id: classId,
           name,
           department,
           semester: Number(semester),
+          displayName: `${name} (${department} - Sem ${semester})`,
           createdAt: new Date().toISOString()
         });
 

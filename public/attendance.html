@@ -209,7 +209,11 @@
             ]);
 
             classSelect.innerHTML = '<option value="">-- Choose Class --</option>' + 
-              classesSnap.docs.map(d => `<option value="${d.id}" ${d.id === preClass ? 'selected' : ''}>${d.data().name || d.id}</option>`).join("");
+              classesSnap.docs.map(d => {
+                const data = d.data();
+                const label = data.displayName || `${data.name || d.id} (Sem ${data.semester || '-'})`;
+                return `<option value="${d.id}" ${d.id === preClass ? 'selected' : ''}>${label}</option>`;
+              }).join("");
 
             subjectSelect.innerHTML = '<option value="">-- Choose Subject --</option>' + 
               subjectsSnap.docs.map(d => `<option value="${d.id}" ${d.id === preSubject ? 'selected' : ''}>${d.data().code || d.id} - ${d.data().name || ""}</option>`).join("");

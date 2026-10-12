@@ -142,7 +142,11 @@
         ]);
 
         reportClass.innerHTML = '<option value="">-- Choose Class --</option>' +
-          classesSnap.docs.map(d => `<option value="${d.id}">${d.data().name || d.id}</option>`).join("");
+          classesSnap.docs.map(d => {
+            const data = d.data();
+            const label = data.displayName || `${data.name || d.id} (Sem ${data.semester || '-'})`;
+            return `<option value="${d.id}">${label}</option>`;
+          }).join("");
 
         reportSubject.innerHTML = '<option value="">-- All Subjects --</option>' +
           subjectsSnap.docs.map(d => `<option value="${d.id}">${d.data().code || d.id} - ${d.data().name || ""}</option>`).join("");

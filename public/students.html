@@ -135,7 +135,11 @@
         const classesSnap = await db.collection("classes").get();
         const classSelect = document.getElementById("studentClass");
         classSelect.innerHTML = '<option value="">-- Choose Class --</option>' +
-          classesSnap.docs.map(d => `<option value="${d.id}">${d.data().name || d.id}</option>`).join("");
+          classesSnap.docs.map(d => {
+            const data = d.data();
+            const label = data.displayName || `${data.name || d.id} (Sem ${data.semester || '-'})`;
+            return `<option value="${d.id}">${label}</option>`;
+          }).join("");
 
         // Load students
         const studentsSnap = await db.collection("students").get();
