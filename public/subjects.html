@@ -50,8 +50,8 @@
       <h3 class="card-title">Add Course Subject</h3>
       <form id="subjectForm" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-top: 1rem;">
         <div class="form-group" style="margin-bottom: 0;">
-          <label class="form-label" for="subjectCode">Subject Code</label>
-          <input type="text" id="subjectCode" class="form-control" placeholder="e.g. CS501" required />
+          <label class="form-label" for="subjectCode">Subject Code (Primary Key)</label>
+          <input type="text" id="subjectCode" class="form-control" placeholder="e.g. CS501" required style="text-transform: uppercase;" oninput="this.value = this.value.toUpperCase()" />
         </div>
 
         <div class="form-group" style="margin-bottom: 0;">
