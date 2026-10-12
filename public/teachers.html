@@ -251,7 +251,7 @@
     // Add Teacher
     document.getElementById("teacherForm").addEventListener("submit", async (e) => {
       e.preventDefault();
-      const name = document.getElementById("teacherName").value.trim();
+      const name = document.getElementById("teacherName").value.trim().toUpperCase();
       const email = document.getElementById("teacherEmail").value.trim().toLowerCase();
       const department = document.getElementById("teacherDept").value.trim();
 

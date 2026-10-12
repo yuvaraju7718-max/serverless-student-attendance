@@ -366,4 +366,9 @@ footer {
   display: inline-flex;
   align-items: center;
   gap: 0.6rem;
+  text-transform: uppercase;
+}
+
+.user-name-uppercase {
+  text-transform: uppercase !important;
 }

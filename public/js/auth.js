@@ -145,7 +145,8 @@ function protectPage(allowedRoles = []) {
       const userNameDisplay = document.getElementById("navUserName");
       const userRoleDisplay = document.getElementById("navUserRole");
       if (userNameDisplay) {
-        const displayName = userData.name || user.email;
+        const displayName = (userData.name || user.email).toUpperCase();
+        userNameDisplay.style.textTransform = "uppercase";
         if (userData.photoUrl) {
           userNameDisplay.innerHTML = `<img src="${userData.photoUrl}" alt="Avatar" class="avatar-circle avatar-sm" style="margin-right: 0.35rem;" /> ${displayName}`;
         } else {
