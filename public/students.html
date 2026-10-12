@@ -50,8 +50,8 @@
       <h3 class="card-title">Enroll New Student</h3>
       <form id="studentForm" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-top: 1rem;">
         <div class="form-group" style="margin-bottom: 0;">
-          <label class="form-label" for="studentRoll">Roll Number</label>
-          <input type="text" id="studentRoll" class="form-control" placeholder="e.g. 2026CS101" required />
+          <label class="form-label" for="studentRoll">USN / Roll Number</label>
+          <input type="text" id="studentRoll" class="form-control" placeholder="e.g. 1MS21CS001" required />
         </div>
 
         <div class="form-group" style="margin-bottom: 0;">
@@ -82,14 +82,14 @@
     <div class="card">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;">
         <h3 class="card-title" style="margin-bottom: 0;">Registered Students</h3>
-        <input type="text" id="searchInput" class="form-control" placeholder="🔍 Search by Roll No or Name..." style="max-width: 280px;" oninput="filterStudents()" />
+        <input type="text" id="searchInput" class="form-control" placeholder="🔍 Search by USN or Name..." style="max-width: 280px;" oninput="filterStudents()" />
       </div>
 
       <div class="table-responsive">
         <table class="table">
           <thead>
             <tr>
-              <th>Roll Number</th>
+              <th>USN / Roll Number</th>
               <th>Student Name</th>
               <th>Email</th>
               <th>Class</th>
@@ -189,13 +189,32 @@
       const saveBtn = document.getElementById("saveStudentBtn");
       saveBtn.disabled = true;
 
-      const rollNumber = document.getElementById("studentRoll").value.trim();
+      const rollNumber = document.getElementById("studentRoll").value.trim().toUpperCase();
       const name = document.getElementById("studentName").value.trim();
       const email = document.getElementById("studentEmail").value.trim().toLowerCase();
       const classId = document.getElementById("studentClass").value;
 
       try {
         const studentId = `stu_${rollNumber.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
+
+        // Check if a student with this USN / ID already exists in Firestore
+        const existingStudentDoc = await db.collection("students").doc(studentId).get();
+        if (existingStudentDoc.exists) {
+          const existing = existingStudentDoc.data();
+          showAlert(`Error: A student with USN / Roll Number "${rollNumber}" is already registered (${existing.name} - ${existing.classId}). Duplicate USN is not allowed.`, "danger");
+          saveBtn.disabled = false;
+          return;
+        }
+
+        // Also check if any existing student has the same rollNumber
+        const rollCheckSnap = await db.collection("students").where("rollNumber", "==", rollNumber).get();
+        if (!rollCheckSnap.empty) {
+          const existing = rollCheckSnap.docs[0].data();
+          showAlert(`Error: A student with USN / Roll Number "${rollNumber}" is already registered (${existing.name}).`, "danger");
+          saveBtn.disabled = false;
+          return;
+        }
+
         await db.collection("students").doc(studentId).set({
           id: studentId,
           rollNumber,
