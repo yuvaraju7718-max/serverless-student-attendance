@@ -116,10 +116,13 @@
       addSubjectCard.style.display = addSubjectCard.style.display === "none" ? "block" : "none";
     }
 
+    let allSubjects = [];
+
     async function loadSubjects() {
       if (!db) return;
       try {
         const snap = await db.collection("subjects").get();
+        allSubjects = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         const tbody = document.getElementById("subjectsTableBody");
 
         if (snap.empty) {
@@ -127,15 +130,14 @@
           return;
         }
 
-        tbody.innerHTML = snap.docs.map(doc => {
-          const s = doc.data();
+        tbody.innerHTML = allSubjects.map(s => {
           return `
             <tr>
-              <td><strong>${s.code || doc.id}</strong></td>
+              <td><strong>${s.code || s.id}</strong></td>
               <td>${s.name || "-"}</td>
               <td>${s.department || "-"}</td>
               <td style="text-align: right;">
-                <button onclick="deleteSubject('${doc.id}')" class="btn btn-danger btn-sm" style="padding: 0.2rem 0.6rem; font-size: 0.8rem;">Delete</button>
+                <button onclick="deleteSubject('${s.id}')" class="btn btn-danger btn-sm" style="padding: 0.2rem 0.6rem; font-size: 0.8rem;">Delete</button>
               </td>
             </tr>
           `;
@@ -147,12 +149,45 @@
 
     document.getElementById("subjectForm").addEventListener("submit", async (e) => {
       e.preventDefault();
+      const saveBtn = document.querySelector("#subjectForm button[type='submit']");
+      if (saveBtn) saveBtn.disabled = true;
+
       const code = document.getElementById("subjectCode").value.trim().toUpperCase();
       const name = document.getElementById("subjectName").value.trim();
       const department = document.getElementById("subjectDept").value.trim();
 
+      // 1. Client-side duplicate course code check
+      const duplicateClient = allSubjects.find(s => s.code && s.code.trim().toUpperCase() === code);
+      if (duplicateClient) {
+        alert(`❌ Duplicate Course Code Rejected!\n\nA subject with Course Code "${code}" is already registered: ${duplicateClient.name} (${duplicateClient.department || '-'}).\n\nCourse Code is unique and cannot be duplicated.`);
+        showAlert(`Error: Course Code "${code}" is already registered (${duplicateClient.name}). Duplicate not allowed.`, "danger");
+        if (saveBtn) saveBtn.disabled = false;
+        return;
+      }
+
       try {
         const subjectId = `sub_${code.replace(/[^A-Z0-9]/g, '_').toLowerCase()}`;
+
+        // 2. Direct Firestore Primary Key check
+        const docSnap = await db.collection("subjects").doc(subjectId).get();
+        if (docSnap.exists) {
+          const existing = docSnap.data();
+          alert(`❌ Duplicate Course Code in Database!\n\nSubject "${existing.name || code}" already has code "${code}".`);
+          showAlert(`Error: Course Code "${code}" already exists in database. Duplicate rejected.`, "danger");
+          if (saveBtn) saveBtn.disabled = false;
+          return;
+        }
+
+        // 3. Firestore query check by code
+        const querySnap = await db.collection("subjects").where("code", "==", code).get();
+        if (!querySnap.empty) {
+          const existing = querySnap.docs[0].data();
+          alert(`❌ Duplicate Course Code: Course code "${code}" already registered for "${existing.name}".`);
+          showAlert(`Error: Course Code "${code}" already registered. Duplicate rejected.`, "danger");
+          if (saveBtn) saveBtn.disabled = false;
+          return;
+        }
+
         await db.collection("subjects").doc(subjectId).set({
           id: subjectId,
           code,
@@ -167,6 +202,8 @@
         loadSubjects();
       } catch (err) {
         showAlert("Failed to save subject: " + err.message, "danger");
+      } finally {
+        if (saveBtn) saveBtn.disabled = false;
       }
     });
 

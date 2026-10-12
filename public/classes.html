@@ -116,10 +116,13 @@
       addClassCard.style.display = addClassCard.style.display === "none" ? "block" : "none";
     }
 
+    let allClasses = [];
+
     async function loadClasses() {
       if (!db) return;
       try {
         const snap = await db.collection("classes").get();
+        allClasses = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         const tbody = document.getElementById("classesTableBody");
 
         if (snap.empty) {
@@ -127,15 +130,14 @@
           return;
         }
 
-        tbody.innerHTML = snap.docs.map(doc => {
-          const c = doc.data();
+        tbody.innerHTML = allClasses.map(c => {
           return `
             <tr>
-              <td><strong>${c.name || doc.id}</strong></td>
+              <td><strong>${c.name || c.id}</strong></td>
               <td>${c.department || "-"}</td>
               <td>Semester ${c.semester || "-"}</td>
               <td style="text-align: right;">
-                <button onclick="deleteClass('${doc.id}')" class="btn btn-danger btn-sm" style="padding: 0.2rem 0.6rem; font-size: 0.8rem;">Delete</button>
+                <button onclick="deleteClass('${c.id}')" class="btn btn-danger btn-sm" style="padding: 0.2rem 0.6rem; font-size: 0.8rem;">Delete</button>
               </td>
             </tr>
           `;
@@ -147,9 +149,25 @@
 
     document.getElementById("classForm").addEventListener("submit", async (e) => {
       e.preventDefault();
-      const name = document.getElementById("className").value.trim();
+      const saveBtn = document.querySelector("#classForm button[type='submit']");
+      if (saveBtn) saveBtn.disabled = true;
+
+      const name = document.getElementById("className").value.trim().toUpperCase();
       const department = document.getElementById("classDept").value.trim();
       const semester = document.getElementById("classSemester").value.trim();
+      const semNum = Number(semester);
+
+      // 1. Client-side check: Cannot have duplicate class name/id in the same semester
+      const duplicateClient = allClasses.find(c => 
+        (c.name && c.name.trim().toUpperCase() === name) && 
+        Number(c.semester) === semNum
+      );
+      if (duplicateClient) {
+        alert(`❌ Duplicate Class Rejected!\n\nA class named "${name}" already exists in Semester ${semester} (${duplicateClient.department || '-'}).\n\nYou cannot have more than one "${name}" in Semester ${semester}.`);
+        showAlert(`Error: Class "${name}" already exists in Semester ${semester}. Duplicate not allowed.`, "danger");
+        if (saveBtn) saveBtn.disabled = false;
+        return;
+      }
 
       try {
         const cleanName = name.replace(/[^a-zA-Z0-9]/g, '-').toUpperCase();
@@ -162,21 +180,44 @@
         if (cleanSem) parts.push(cleanSem);
         const classId = parts.join("-");
 
+        // 2. Direct Firestore check by classId
+        const docSnap = await db.collection("classes").doc(classId).get();
+        if (docSnap.exists) {
+          alert(`❌ Duplicate Class in Database!\n\nClass "${name}" already exists in Semester ${semester}.`);
+          showAlert(`Error: Class "${name}" already registered for Semester ${semester}. Duplicate rejected.`, "danger");
+          if (saveBtn) saveBtn.disabled = false;
+          return;
+        }
+
+        // 3. Query check: same class name + same semester
+        const querySnap = await db.collection("classes")
+          .where("name", "==", name)
+          .where("semester", "==", semNum)
+          .get();
+        if (!querySnap.empty) {
+          alert(`❌ Duplicate Class: Class "${name}" already registered in Semester ${semester}.`);
+          showAlert(`Error: Class "${name}" already exists in Semester ${semester}. Duplicate rejected.`, "danger");
+          if (saveBtn) saveBtn.disabled = false;
+          return;
+        }
+
         await db.collection("classes").doc(classId).set({
           id: classId,
           name,
           department,
-          semester: Number(semester),
+          semester: semNum,
           displayName: `${name} (${department} - Sem ${semester})`,
           createdAt: new Date().toISOString()
         });
 
-        showAlert(`Class ${name} registered successfully!`, "success");
+        showAlert(`Class ${name} (Semester ${semester}) registered successfully!`, "success");
         document.getElementById("classForm").reset();
         toggleClassForm();
         loadClasses();
       } catch (err) {
         showAlert("Failed to save class: " + err.message, "danger");
+      } finally {
+        if (saveBtn) saveBtn.disabled = false;
       }
     });
 
