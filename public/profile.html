@@ -25,16 +25,16 @@
     </div>
   </header>
 
-  <main class="container" style="max-width: 680px;">
+  <main class="container" style="max-width: 760px;">
     <div id="statusAlert" class="alert"></div>
 
     <div class="card" style="margin-top: 1rem;">
       <div style="text-align: center; padding-bottom: 1.5rem; border-bottom: 1px solid var(--border); margin-bottom: 1.5rem;">
         
         <!-- Profile Picture Container -->
-        <div style="position: relative; width: 104px; height: 104px; margin: 0 auto 1rem auto;">
-          <img id="profileImage" src="" alt="Profile Photo" class="avatar-circle avatar-lg" style="width: 104px; height: 104px; display: none;" />
-          <div id="avatarInitial" class="avatar-circle avatar-lg" style="width: 104px; height: 104px; line-height: 100px; margin: 0 auto; display: flex; align-items: center; justify-content: center;">
+        <div style="position: relative; width: 110px; height: 110px; margin: 0 auto 1rem auto;">
+          <img id="profileImage" src="" alt="Profile Photo" class="avatar-circle avatar-lg" style="width: 110px; height: 110px; display: none;" />
+          <div id="avatarInitial" class="avatar-circle avatar-lg" style="width: 110px; height: 110px; line-height: 104px; margin: 0 auto; display: flex; align-items: center; justify-content: center; font-size: 2.5rem;">
             U
           </div>
         </div>
@@ -46,7 +46,7 @@
             📷 Upload Profile Photo
           </button>
           <button type="button" onclick="removePhoto()" class="btn btn-danger btn-sm" id="removeBtn" style="display: none; margin-left: 0.5rem;">
-            Remove
+            Remove Photo
           </button>
           <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.4rem;">
             Supports JPG, PNG (automatically resized & saved to your profile)
@@ -57,29 +57,67 @@
         <span id="profileRoleBadge" class="role-badge role-admin">Role</span>
       </div>
 
-      <div style="display: grid; gap: 1rem;">
+      <!-- General Info Grid -->
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.25rem; margin-bottom: 1.5rem;">
+        <div>
+          <label style="font-size: 0.8rem; text-transform: uppercase; color: var(--text-muted); font-weight: bold;">Full Name</label>
+          <div id="infoFullName" style="font-size: 1.05rem; font-weight: 600; color: var(--text);">-</div>
+        </div>
+
         <div>
           <label style="font-size: 0.8rem; text-transform: uppercase; color: var(--text-muted); font-weight: bold;">Institutional Email</label>
           <div id="profileEmail" style="font-size: 1.05rem; font-weight: 500; color: var(--text);">-</div>
         </div>
 
-        <div id="extraFieldContainer1" style="display: none;">
-          <label id="extraFieldLabel1" style="font-size: 0.8rem; text-transform: uppercase; color: var(--text-muted); font-weight: bold;">Department</label>
-          <div id="extraFieldValue1" style="font-size: 1.05rem; font-weight: 500; color: var(--text);">-</div>
+        <!-- Student Specific Fields -->
+        <div id="studentUsnBlock" style="display: none;">
+          <label style="font-size: 0.8rem; text-transform: uppercase; color: var(--text-muted); font-weight: bold;">USN / Student ID</label>
+          <div id="infoStudentUsn" style="font-size: 1.05rem; font-weight: 700; color: var(--primary);">-</div>
         </div>
 
-        <div id="extraFieldContainer2" style="display: none;">
-          <label id="extraFieldLabel2" style="font-size: 0.8rem; text-transform: uppercase; color: var(--text-muted); font-weight: bold;">Class / Section</label>
-          <div id="extraFieldValue2" style="font-size: 1.05rem; font-weight: 500; color: var(--text);">-</div>
+        <div id="studentClassBlock" style="display: none;">
+          <label style="font-size: 0.8rem; text-transform: uppercase; color: var(--text-muted); font-weight: bold;">Enrolled Class & Section</label>
+          <div id="infoStudentClass" style="font-size: 1.05rem; font-weight: 600; color: var(--text);">-</div>
+        </div>
+
+        <!-- Teacher Specific Department -->
+        <div id="teacherDeptBlock" style="display: none;">
+          <label style="font-size: 0.8rem; text-transform: uppercase; color: var(--text-muted); font-weight: bold;">Academic Department</label>
+          <div id="infoTeacherDept" style="font-size: 1.05rem; font-weight: 600; color: var(--text);">-</div>
         </div>
 
         <div>
           <label style="font-size: 0.8rem; text-transform: uppercase; color: var(--text-muted); font-weight: bold;">Authentication ID (UID)</label>
-          <div id="profileUid" style="font-family: monospace; font-size: 0.9rem; color: var(--secondary); word-break: break-all;">-</div>
+          <div id="profileUid" style="font-family: monospace; font-size: 0.85rem; color: var(--secondary); word-break: break-all;">-</div>
         </div>
       </div>
 
-      <div style="margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--border); display: flex; justify-content: flex-end;">
+      <!-- Teacher Teaching Allocations Section -->
+      <div id="teacherAllocationsCard" style="display: none; border-top: 1px solid var(--border); padding-top: 1.5rem; margin-top: 1.5rem;">
+        <h3 style="font-size: 1.15rem; margin-bottom: 0.5rem;">📚 Assigned Teaching Portfolio</h3>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">
+          Classes and curriculum subjects authorized for this faculty profile by the administrator.
+        </p>
+
+        <div class="table-responsive">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Assigned Class / Section</th>
+                <th>Course Subject Handled</th>
+                <th style="text-align: right;">Action</th>
+              </tr>
+            </thead>
+            <tbody id="teacherAllocationsTable">
+              <tr>
+                <td colspan="3" style="text-align: center; color: var(--text-muted); padding: 1.25rem;">Loading teaching allocations...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div style="margin-top: 2rem; padding-top: 1.25rem; border-top: 1px solid var(--border); display: flex; justify-content: flex-end;">
         <button onclick="logoutUser()" class="btn btn-danger btn-sm">Sign Out of Account</button>
       </div>
     </div>
@@ -139,6 +177,7 @@
 
         const name = data.name || user.email;
         document.getElementById("profileName").textContent = name;
+        document.getElementById("infoFullName").textContent = name;
         document.getElementById("profileEmail").textContent = user.email;
         document.getElementById("profileUid").textContent = user.uid;
 
@@ -146,29 +185,120 @@
         roleBadge.textContent = currentUserRole;
         roleBadge.className = `role-badge role-${currentUserRole}`;
 
-        // Load photo
+        // Load Photo
         setPhotoDisplay(data.photoUrl, name);
 
-        if (currentUserRole === "teacher" && data.department) {
-          document.getElementById("extraFieldContainer1").style.display = "block";
-          document.getElementById("extraFieldLabel1").textContent = "Department";
-          document.getElementById("extraFieldValue1").textContent = data.department;
-        } else if (currentUserRole === "student") {
-          if (data.rollNumber) {
-            document.getElementById("extraFieldContainer1").style.display = "block";
-            document.getElementById("extraFieldLabel1").textContent = "USN / Roll Number";
-            document.getElementById("extraFieldValue1").textContent = data.rollNumber;
+        // 1. STUDENT PROFILE UPGRADE
+        if (currentUserRole === "student") {
+          let studentDocData = null;
+          try {
+            if (user.email) {
+              const byEmail = await db.collection("students").where("email", "==", user.email).get();
+              if (!byEmail.empty) studentDocData = byEmail.docs[0].data();
+            }
+            if (!studentDocData && data.rollNumber) {
+              const byRoll = await db.collection("students").where("rollNumber", "==", data.rollNumber).get();
+              if (!byRoll.empty) studentDocData = byRoll.docs[0].data();
+            }
+          } catch (e) {
+            console.warn("Could not query students doc:", e);
           }
-          if (data.classId) {
-            document.getElementById("extraFieldContainer2").style.display = "block";
-            document.getElementById("extraFieldLabel2").textContent = "Enrolled Class";
-            document.getElementById("extraFieldValue2").textContent = data.classId;
-          }
+
+          const usn = studentDocData?.rollNumber || data.rollNumber || "Not Assigned";
+          const classSection = studentDocData?.classId || data.classId || "Not Assigned";
+
+          document.getElementById("studentUsnBlock").style.display = "block";
+          document.getElementById("infoStudentUsn").textContent = usn;
+
+          document.getElementById("studentClassBlock").style.display = "block";
+          document.getElementById("infoStudentClass").textContent = classSection;
         }
+
+        // 2. TEACHER PROFILE UPGRADE
+        else if (currentUserRole === "teacher") {
+          let teacherDocData = null;
+          const possibleTeacherIds = [user.uid];
+
+          try {
+            const byEmail = await db.collection("teachers").where("email", "==", user.email).get();
+            if (!byEmail.empty) {
+              teacherDocData = byEmail.docs[0].data();
+              byEmail.forEach(d => possibleTeacherIds.push(d.id));
+            }
+          } catch (e) {
+            console.warn("Could not query teachers doc:", e);
+          }
+
+          const department = teacherDocData?.department || data.department || "Faculty";
+          document.getElementById("teacherDeptBlock").style.display = "block";
+          document.getElementById("infoTeacherDept").textContent = department;
+
+          // Fetch all teaching assignments for this faculty member
+          loadTeacherAssignments(possibleTeacherIds, user.email, name);
+        }
+
       } catch (err) {
         console.error("Error loading profile:", err);
       }
     });
+
+    // Load classes and subjects handled by this teacher
+    async function loadTeacherAssignments(possibleIds, teacherEmail, teacherName) {
+      const container = document.getElementById("teacherAllocationsCard");
+      const tbody = document.getElementById("teacherAllocationsTable");
+      container.style.display = "block";
+
+      try {
+        const asgnsSnap = await db.collection("assignments").get();
+        const myAssignments = [];
+
+        asgnsSnap.forEach(doc => {
+          const a = doc.data();
+          const isMine = (
+            possibleIds.includes(a.teacherId) ||
+            (a.teacherEmail && a.teacherEmail.toLowerCase() === teacherEmail.toLowerCase()) ||
+            (a.teacherName && a.teacherName.toLowerCase() === teacherName.toLowerCase())
+          );
+          if (isMine) {
+            myAssignments.push({ id: doc.id, ...a });
+          }
+        });
+
+        if (myAssignments.length === 0) {
+          tbody.innerHTML = `
+            <tr>
+              <td colspan="3" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">
+                No classes or subjects have been assigned to your profile yet. Please contact your administrator.
+              </td>
+            </tr>
+          `;
+          return;
+        }
+
+        tbody.innerHTML = myAssignments.map(a => `
+          <tr>
+            <td>
+              <span class="role-badge" style="background:#e0e7ff; color:#3730a3; font-weight:600;">
+                🏫 ${a.classId}
+              </span>
+            </td>
+            <td>
+              <strong>${a.subjectName || a.subjectId}</strong>
+              <div style="font-size:0.75rem; color:var(--text-muted); font-family:monospace;">${a.subjectId}</div>
+            </td>
+            <td style="text-align: right;">
+              <a href="attendance.html?classId=${encodeURIComponent(a.classId)}&subjectId=${encodeURIComponent(a.subjectId)}" class="btn btn-primary btn-sm" style="padding: 0.2rem 0.6rem; font-size: 0.8rem;">
+                ✏️ Mark Attendance
+              </a>
+            </td>
+          </tr>
+        `).join("");
+
+      } catch (err) {
+        console.error("Error loading teacher assignments:", err);
+        tbody.innerHTML = `<tr><td colspan="3" style="text-align:center; color:var(--danger); padding:1rem;">Failed to load teaching allocations.</td></tr>`;
+      }
+    }
 
     // Resize and compress image to base64 data URI
     function resizeImage(file, maxWidth, maxHeight, quality, callback) {
@@ -212,12 +342,12 @@
 
       resizeImage(file, 160, 160, 0.7, async (photoDataUrl) => {
         try {
-          // 1. Update users collection directly for the authenticated user
+          // 1. Update users collection directly
           await db.collection("users").doc(currentUserUid).set({
             photoUrl: photoDataUrl
           }, { merge: true });
 
-          // 2. Also attempt updating teacher/student directory record
+          // 2. Also sync to teachers/students if possible
           try {
             if (currentUserRole === "teacher") {
               const tchSnap = await db.collection("teachers").where("email", "==", currentUserData.email).get();
@@ -231,7 +361,7 @@
               }
             }
           } catch (secErr) {
-            console.warn("Secondary collection photo sync:", secErr);
+            console.warn("Secondary sync notice:", secErr);
           }
 
           setPhotoDisplay(photoDataUrl, currentUserData.name);
@@ -253,13 +383,15 @@
           photoUrl: ""
         }, { merge: true });
 
-        if (currentUserRole === "teacher") {
-          const tchSnap = await db.collection("teachers").where("email", "==", currentUserData.email).get();
-          tchSnap.forEach(d => d.ref.set({ photoUrl: "" }, { merge: true }));
-        } else if (currentUserRole === "student") {
-          const stuSnap = await db.collection("students").where("email", "==", currentUserData.email).get();
-          stuSnap.forEach(d => d.ref.set({ photoUrl: "" }, { merge: true }));
-        }
+        try {
+          if (currentUserRole === "teacher") {
+            const tchSnap = await db.collection("teachers").where("email", "==", currentUserData.email).get();
+            tchSnap.forEach(d => d.ref.set({ photoUrl: "" }, { merge: true }));
+          } else if (currentUserRole === "student") {
+            const stuSnap = await db.collection("students").where("email", "==", currentUserData.email).get();
+            stuSnap.forEach(d => d.ref.set({ photoUrl: "" }, { merge: true }));
+          }
+        } catch (e) {}
 
         setPhotoDisplay("", currentUserData.name);
         showAlert("Profile photo removed.", "info");
