@@ -1,5 +1,6 @@
 {
   "hosting": {
+    "site": "student-attendance-syste-17716",
     "public": "public",
     "ignore": [
       "firebase.json",

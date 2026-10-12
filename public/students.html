@@ -194,27 +194,42 @@
       const email = document.getElementById("studentEmail").value.trim().toLowerCase();
       const classId = document.getElementById("studentClass").value;
 
+      // Direct client-side Primary Key check against loaded records
+      const duplicateClient = allStudents.find(s => 
+        (s.rollNumber && s.rollNumber.trim().toUpperCase() === rollNumber) ||
+        (s.id && s.id.toLowerCase() === `stu_${rollNumber.toLowerCase().replace(/[^a-z0-9]/g, '_')}`)
+      );
+      if (duplicateClient) {
+        alert(`❌ Duplicate Student ID / USN Rejected!\n\nA student with USN "${rollNumber}" already exists: ${duplicateClient.name} (${duplicateClient.classId}).\n\nStudent ID / USN is the PRIMARY KEY and must be strictly unique.`);
+        showAlert(`Error: Student ID / USN "${rollNumber}" already registered for ${duplicateClient.name}. Duplicate not allowed!`, "danger");
+        saveBtn.disabled = false;
+        return;
+      }
+
       try {
         const studentId = `stu_${rollNumber.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
 
-        // Check if a student with this USN / ID already exists in Firestore
+        // 1. Direct Primary Key Document check in Firestore
         const existingStudentDoc = await db.collection("students").doc(studentId).get();
         if (existingStudentDoc.exists) {
           const existing = existingStudentDoc.data();
-          showAlert(`Error: A student with USN / Roll Number "${rollNumber}" is already registered (${existing.name} - ${existing.classId}). Duplicate USN is not allowed.`, "danger");
+          alert(`❌ Duplicate Student ID / USN Detected in Database!\n\nUSN "${rollNumber}" already belongs to ${existing.name || 'existing student'} (${existing.classId || '-'}).`);
+          showAlert(`Error: Student ID / USN "${rollNumber}" already exists in database. Duplicate rejected.`, "danger");
           saveBtn.disabled = false;
           return;
         }
 
-        // Also check if any existing student has the same rollNumber
+        // 2. Query check by rollNumber
         const rollCheckSnap = await db.collection("students").where("rollNumber", "==", rollNumber).get();
         if (!rollCheckSnap.empty) {
           const existing = rollCheckSnap.docs[0].data();
-          showAlert(`Error: A student with USN / Roll Number "${rollNumber}" is already registered (${existing.name}).`, "danger");
+          alert(`❌ Duplicate USN: Student "${existing.name}" is already enrolled with USN "${rollNumber}".`);
+          showAlert(`Error: Student ID / USN "${rollNumber}" already belongs to ${existing.name}. Duplicate rejected.`, "danger");
           saveBtn.disabled = false;
           return;
         }
 
+        // Save as Primary Key in Firestore
         await db.collection("students").doc(studentId).set({
           id: studentId,
           rollNumber,
@@ -235,11 +250,12 @@
           createdAt: new Date().toISOString()
         }, { merge: true });
 
-        showAlert(`Student ${name} (${rollNumber}) enrolled successfully!`, "success");
+        showAlert(`Student ${name} (USN: ${rollNumber}) enrolled successfully!`, "success");
         document.getElementById("studentForm").reset();
         toggleAddForm();
         loadData();
       } catch (err) {
+        console.error("Save student error:", err);
         showAlert("Failed to save student: " + err.message, "danger");
       } finally {
         saveBtn.disabled = false;
