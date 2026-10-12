@@ -141,9 +141,27 @@
             return `<option value="${d.id}">${label}</option>`;
           }).join("");
 
-        // Load students
-        const studentsSnap = await db.collection("students").get();
-        allStudents = studentsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        // Load students and merge photos from users collection if available
+        const [studentsSnap, usersSnap] = await Promise.all([
+          db.collection("students").get(),
+          db.collection("users").get()
+        ]);
+
+        const userPhotos = {};
+        usersSnap.forEach(d => {
+          const u = d.data();
+          if (u.photoUrl) {
+            userPhotos[d.id] = u.photoUrl;
+            if (u.email) userPhotos[u.email.toLowerCase()] = u.photoUrl;
+            if (u.rollNumber) userPhotos[u.rollNumber] = u.photoUrl;
+          }
+        });
+
+        allStudents = studentsSnap.docs.map(d => {
+          const s = d.data();
+          const photo = s.photoUrl || userPhotos[d.id] || (s.email ? userPhotos[s.email.toLowerCase()] : '') || (s.rollNumber ? userPhotos[s.rollNumber] : '');
+          return { id: d.id, ...s, photoUrl: photo };
+        });
         allStudents.sort((a, b) => (a.rollNumber || "").localeCompare(b.rollNumber || "", undefined, { numeric: true }));
 
         renderStudents(allStudents);

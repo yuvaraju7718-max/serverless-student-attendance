@@ -210,24 +210,28 @@
       uploadBtn.disabled = true;
       uploadBtn.textContent = "Processing photo...";
 
-      resizeImage(file, 200, 200, 0.8, async (photoDataUrl) => {
+      resizeImage(file, 160, 160, 0.7, async (photoDataUrl) => {
         try {
-          // 1. Update users collection
+          // 1. Update users collection directly for the authenticated user
           await db.collection("users").doc(currentUserUid).set({
             photoUrl: photoDataUrl
           }, { merge: true });
 
-          // 2. Also update in teachers or students collection if applicable
-          if (currentUserRole === "teacher") {
-            const tchSnap = await db.collection("teachers").where("email", "==", currentUserData.email).get();
-            tchSnap.forEach(d => d.ref.set({ photoUrl: photoDataUrl }, { merge: true }));
-          } else if (currentUserRole === "student") {
-            const stuSnap = await db.collection("students").where("email", "==", currentUserData.email).get();
-            stuSnap.forEach(d => d.ref.set({ photoUrl: photoDataUrl }, { merge: true }));
-            if (currentUserData.rollNumber) {
-              const rollSnap = await db.collection("students").where("rollNumber", "==", currentUserData.rollNumber).get();
-              rollSnap.forEach(d => d.ref.set({ photoUrl: photoDataUrl }, { merge: true }));
+          // 2. Also attempt updating teacher/student directory record
+          try {
+            if (currentUserRole === "teacher") {
+              const tchSnap = await db.collection("teachers").where("email", "==", currentUserData.email).get();
+              tchSnap.forEach(d => d.ref.set({ photoUrl: photoDataUrl }, { merge: true }));
+            } else if (currentUserRole === "student") {
+              const stuSnap = await db.collection("students").where("email", "==", currentUserData.email).get();
+              stuSnap.forEach(d => d.ref.set({ photoUrl: photoDataUrl }, { merge: true }));
+              if (currentUserData.rollNumber) {
+                const rollSnap = await db.collection("students").where("rollNumber", "==", currentUserData.rollNumber).get();
+                rollSnap.forEach(d => d.ref.set({ photoUrl: photoDataUrl }, { merge: true }));
+              }
             }
+          } catch (secErr) {
+            console.warn("Secondary collection photo sync:", secErr);
           }
 
           setPhotoDisplay(photoDataUrl, currentUserData.name);
