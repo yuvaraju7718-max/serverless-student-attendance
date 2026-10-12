@@ -85,11 +85,6 @@
           <label style="font-size: 0.8rem; text-transform: uppercase; color: var(--text-muted); font-weight: bold;">Academic Department</label>
           <div id="infoTeacherDept" style="font-size: 1.05rem; font-weight: 600; color: var(--text);">-</div>
         </div>
-
-        <div>
-          <label style="font-size: 0.8rem; text-transform: uppercase; color: var(--text-muted); font-weight: bold;">Authentication ID (UID)</label>
-          <div id="profileUid" style="font-family: monospace; font-size: 0.85rem; color: var(--secondary); word-break: break-all;">-</div>
-        </div>
       </div>
 
       <!-- Teacher Teaching Allocations Section -->
@@ -179,7 +174,6 @@
         document.getElementById("profileName").textContent = name;
         document.getElementById("infoFullName").textContent = name;
         document.getElementById("profileEmail").textContent = user.email;
-        document.getElementById("profileUid").textContent = user.uid;
 
         const roleBadge = document.getElementById("profileRoleBadge");
         roleBadge.textContent = currentUserRole;
