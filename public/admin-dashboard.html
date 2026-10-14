@@ -100,7 +100,8 @@
         <table class="table">
           <thead>
             <tr>
-              <th>Date</th>
+              <th>Date & Time</th>
+              <th>Duration</th>
               <th>Student Roll No</th>
               <th>Class</th>
               <th>Subject</th>
@@ -109,7 +110,7 @@
           </thead>
           <tbody id="recentAttendanceTable">
             <tr>
-              <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">
+              <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">
                 Loading attendance records...
               </td>
             </tr>
@@ -169,10 +170,16 @@
           const photoHtml = photo 
             ? `<img src="${photo}" alt="Student" class="avatar-circle avatar-sm" />` 
             : `<div class="avatar-circle avatar-sm" style="display:inline-flex; align-items:center; justify-content:center;">${(data.studentName || data.rollNumber || 'S').charAt(0).toUpperCase()}</div>`;
+          const timeDisplay = data.time ? `<div style="font-size:0.75rem; color:var(--text-muted); margin-top:0.2rem;">⏰ ${data.time}</div>` : "";
+          const hoursDisplay = `<span class="badge" style="background:#e0f2fe; color:#0369a1; font-size:0.75rem;">${data.hours || 1} hr${(data.hours || 1) > 1 ? 's' : ''}</span>`;
 
           return `
             <tr>
-              <td>${data.date || "-"}</td>
+              <td>
+                <strong>${data.date || "-"}</strong>
+                ${timeDisplay}
+              </td>
+              <td>${hoursDisplay}</td>
               <td>
                 <div class="user-badge-cell">
                   ${photoHtml}

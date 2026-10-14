@@ -40,7 +40,7 @@
     <!-- Attendance Selection Form Card -->
     <div class="card">
       <h3 class="card-title">1. Select Academic Session</h3>
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-top: 1rem;">
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-top: 1rem;">
         <div class="form-group" style="margin-bottom: 0;">
           <label class="form-label" for="classSelect">Class / Section</label>
           <select id="classSelect" class="form-select">
@@ -58,6 +58,21 @@
         <div class="form-group" style="margin-bottom: 0;">
           <label class="form-label" for="dateSelect">Session Date</label>
           <input type="date" id="dateSelect" class="form-control" />
+        </div>
+
+        <div class="form-group" style="margin-bottom: 0;">
+          <label class="form-label" for="timeSelect">Session Time</label>
+          <input type="time" id="timeSelect" class="form-control" />
+        </div>
+
+        <div class="form-group" style="margin-bottom: 0;">
+          <label class="form-label" for="hoursSelect">Duration (Hours)</label>
+          <select id="hoursSelect" class="form-select">
+            <option value="1" selected>1 Hour</option>
+            <option value="2">2 Hours (Lab / Block)</option>
+            <option value="3">3 Hours</option>
+            <option value="4">4 Hours</option>
+          </select>
         </div>
 
         <div style="display: flex; align-items: flex-end;">
@@ -117,9 +132,24 @@
   <script>
     protectPage(["teacher", "admin"]);
 
-    // Default to today's date YYYY-MM-DD
+    // Default to today's date YYYY-MM-DD and current time HH:mm
     const dateInput = document.getElementById("dateSelect");
     dateInput.value = new Date().toISOString().split("T")[0];
+
+    const timeInput = document.getElementById("timeSelect");
+    const hoursInput = document.getElementById("hoursSelect");
+    const nowTime = new Date();
+    timeInput.value = String(nowTime.getHours()).padStart(2, '0') + ":" + String(nowTime.getMinutes()).padStart(2, '0');
+
+    function formatTime12h(timeStr) {
+      if (!timeStr) return "";
+      const parts = timeStr.split(":");
+      let hour = parseInt(parts[0], 10);
+      const minutes = parts[1] || "00";
+      const ampm = hour >= 12 ? "PM" : "AM";
+      hour = hour % 12 || 12;
+      return `${hour}:${minutes} ${ampm}`;
+    }
 
     const classSelect = document.getElementById("classSelect");
     const subjectSelect = document.getElementById("subjectSelect");
@@ -130,6 +160,28 @@
     const submitBtn = document.getElementById("submitAttendanceBtn");
 
     let currentStudents = [];
+    let currentTeacherBranch = null; // "CSE" | "ISE" | null
+
+    function isCseItem(str) {
+      const s = (str || "").toUpperCase();
+      return s.includes("CSE") || s.includes("COMPUTER") || s.includes("CS") || s.startsWith("CS");
+    }
+
+    function isIseItem(str) {
+      const s = (str || "").toUpperCase();
+      return s.includes("ISE") || s.includes("INFORMATION") || s.includes("IS") || s.startsWith("IS");
+    }
+
+    function detectBranch(dept, email, name) {
+      const str = `${dept || ""} ${email || ""} ${name || ""}`.toUpperCase();
+      if (str.includes("ISE") || str.includes("INFORMATION") || str.includes("IS")) {
+        return "ISE";
+      }
+      if (str.includes("CSE") || str.includes("COMPUTER") || str.includes("CS")) {
+        return "CSE";
+      }
+      return null;
+    }
 
     // Helper: Show alert message
     function showAlert(msg, type = "info") {
@@ -151,19 +203,49 @@
           const preSubject = urlParams.get("subjectId");
 
           const userDoc = await db.collection("users").doc(user.uid).get();
-          const role = userDoc.exists ? userDoc.data().role : "";
+          const userData = userDoc.exists ? userDoc.data() : {};
+          const role = userData.role || "";
+
+          let teacherDept = userData.department || "";
+          let teacherEmail = user.email || "";
+          let teacherName = userData.name || "";
+
+          // Resolve teacher record from teachers collection
+          const possibleTeacherIds = [user.uid];
+          try {
+            const teacherByEmail = await db.collection("teachers").where("email", "==", user.email).get();
+            teacherByEmail.forEach(d => {
+              possibleTeacherIds.push(d.id);
+              const td = d.data();
+              if (!teacherDept && td.department) teacherDept = td.department;
+              if (!teacherName && td.name) teacherName = td.name;
+            });
+          } catch (e) {
+            console.warn("Could not query teachers collection:", e);
+          }
 
           let classesSnap, subjectsSnap;
 
           if (role === "teacher") {
-            // Find all teacher assignments flexibly
-            const possibleTeacherIds = [user.uid];
-            try {
-              const teacherByEmail = await db.collection("teachers").where("email", "==", user.email).get();
-              teacherByEmail.forEach(d => possibleTeacherIds.push(d.id));
-            } catch (e) {
-              console.warn("Could not query teachers collection:", e);
-            }
+            currentTeacherBranch = detectBranch(teacherDept, teacherEmail, teacherName);
+
+            // Fetch classes & subjects database reference to know their departments accurately
+            [classesSnap, subjectsSnap] = await Promise.all([
+              db.collection("classes").get(),
+              db.collection("subjects").get()
+            ]);
+
+            const classMap = {};
+            classesSnap.forEach(d => {
+              const data = d.data();
+              classMap[d.id] = `${data.name || d.id} ${data.department || ''}`;
+            });
+
+            const subjectMap = {};
+            subjectsSnap.forEach(d => {
+              const data = d.data();
+              subjectMap[d.id] = `${data.code || d.id} ${data.name || ''} ${data.department || ''}`;
+            });
 
             const allAsgns = await db.collection("assignments").get();
             const classSet = new Set();
@@ -174,23 +256,64 @@
               const isMine = (
                 possibleTeacherIds.includes(d.teacherId) ||
                 (d.teacherEmail && d.teacherEmail.toLowerCase() === user.email.toLowerCase()) ||
-                (d.teacherName && userDoc.data().name && d.teacherName.toLowerCase() === userDoc.data().name.toLowerCase())
+                (d.teacherName && teacherName && d.teacherName.toLowerCase() === teacherName.toLowerCase())
               );
               if (isMine) {
-                if (d.classId) classSet.add(d.classId);
-                if (d.subjectId) subjectSet.add(JSON.stringify({ id: d.subjectId, name: d.subjectName || d.subjectId }));
+                const cInfo = classMap[d.classId] || d.classId;
+                const sInfo = subjectMap[d.subjectId] || `${d.subjectId} ${d.subjectName || ''}`;
+
+                if (currentTeacherBranch === "ISE") {
+                  if (isIseItem(cInfo) && !isCseItem(cInfo)) {
+                    classSet.add(d.classId);
+                  }
+                  if (isIseItem(sInfo) && !isCseItem(sInfo)) {
+                    subjectSet.add(JSON.stringify({ id: d.subjectId, name: d.subjectName || d.subjectId }));
+                  }
+                } else if (currentTeacherBranch === "CSE") {
+                  if (isCseItem(cInfo) && !isIseItem(cInfo)) {
+                    classSet.add(d.classId);
+                  }
+                  if (isCseItem(sInfo) && !isIseItem(sInfo)) {
+                    subjectSet.add(JSON.stringify({ id: d.subjectId, name: d.subjectName || d.subjectId }));
+                  }
+                } else {
+                  if (d.classId) classSet.add(d.classId);
+                  if (d.subjectId) subjectSet.add(JSON.stringify({ id: d.subjectId, name: d.subjectName || d.subjectId }));
+                }
               }
             });
 
-            // If no specific assignment found, load all classes & subjects so teacher is not blocked
+            // If no specific assignment found, load all branch-specific classes & subjects
             if (classSet.size === 0) {
-              showAlert("Notice: No specific class assignment found for your account. Showing all classes so you can mark attendance.", "info");
-              const [allClasses, allSubjects] = await Promise.all([
-                db.collection("classes").get(),
-                db.collection("subjects").get()
-              ]);
-              allClasses.forEach(d => classSet.add(d.id));
-              allSubjects.forEach(d => subjectSet.add(JSON.stringify({ id: d.id, name: d.data().name || d.id })));
+              classesSnap.forEach(d => {
+                const data = d.data();
+                const info = `${data.name || d.id} ${data.department || ''}`;
+                if (currentTeacherBranch === "ISE") {
+                  if (isIseItem(info)) classSet.add(d.id);
+                } else if (currentTeacherBranch === "CSE") {
+                  if (isCseItem(info)) classSet.add(d.id);
+                } else {
+                  classSet.add(d.id);
+                }
+              });
+
+              subjectsSnap.forEach(d => {
+                const data = d.data();
+                const info = `${data.code || d.id} ${data.name || ''} ${data.department || ''}`;
+                if (currentTeacherBranch === "ISE") {
+                  if (isIseItem(info)) subjectSet.add(JSON.stringify({ id: d.id, name: data.name || d.id }));
+                } else if (currentTeacherBranch === "CSE") {
+                  if (isCseItem(info)) subjectSet.add(JSON.stringify({ id: d.id, name: data.name || d.id }));
+                } else {
+                  subjectSet.add(JSON.stringify({ id: d.id, name: data.name || d.id }));
+                }
+              });
+            }
+
+            if (currentTeacherBranch === "ISE") {
+              showAlert("🔒 ISE Faculty Mode: You are authorized ONLY to select and mark attendance for Information Science (ISE) classes & courses.", "info");
+            } else if (currentTeacherBranch === "CSE") {
+              showAlert("🔒 CSE Faculty Mode: You are authorized ONLY to select and mark attendance for Computer Science (CSE) classes & courses.", "info");
             }
 
             classSelect.innerHTML = '<option value="">-- Choose Class --</option>' + 
@@ -235,10 +358,28 @@
       const classId = classSelect.value;
       const subjectId = subjectSelect.value;
       const date = dateInput.value;
+      const rawTime = timeInput.value || "09:00";
+      const formattedTime = formatTime12h(rawTime);
+      const durationHours = parseInt(hoursInput.value, 10) || 1;
 
       if (!classId || !subjectId || !date) {
-        showAlert("Please select Class, Subject, and Date.", "danger");
+        showAlert("Please select Class, Subject, Date, and Time.", "danger");
         return;
+      }
+
+      // Department Boundary Enforcement: ISE faculty only ISE, CSE faculty only CSE
+      if (currentTeacherBranch === "ISE") {
+        if (isCseItem(classId) || isCseItem(subjectId)) {
+          alert("❌ Unauthorized Department Selection!\n\nAs an ISE Faculty member, you are ONLY authorized to mark attendance for ISE classes and ISE courses.\n\nPlease select an ISE class and subject.");
+          showAlert("Error: ISE teachers can only take ISE classes and ISE courses.", "danger");
+          return;
+        }
+      } else if (currentTeacherBranch === "CSE") {
+        if (isIseItem(classId) || isIseItem(subjectId)) {
+          alert("❌ Unauthorized Department Selection!\n\nAs a CSE Faculty member, you are ONLY authorized to mark attendance for CSE classes and CSE courses.\n\nPlease select a CSE class and subject.");
+          showAlert("Error: CSE teachers can only take CSE classes and CSE courses.", "danger");
+          return;
+        }
       }
 
       showAlert("Loading class roster...", "info");
@@ -265,9 +406,15 @@
           .get();
 
         const existingMap = {};
+        let matchedTime = false;
         existingSnap.forEach(d => {
           const row = d.data();
-          existingMap[row.studentId] = row.status;
+          if (row.rawTime === rawTime || row.time === formattedTime) {
+            existingMap[row.studentId] = row.status;
+            matchedTime = true;
+          } else if (!existingMap[row.studentId]) {
+            existingMap[row.studentId] = row.status;
+          }
         });
 
         currentStudents = studentsSnap.docs.map(d => {
@@ -276,7 +423,7 @@
             id: d.id,
             uid: s.uid || d.id,
             rollNumber: s.rollNumber || "N/A",
-            name: s.name || "Unnamed Student",
+            name: (s.name || "UNNAMED STUDENT").toUpperCase(),
             photoUrl: s.photoUrl || "",
             status: existingMap[d.id] || "Present" // Default to Present or existing status
           };
@@ -287,10 +434,17 @@
 
         renderRoster();
 
-        if (existingSnap.size > 0) {
-          showAlert(`⚠️ Attendance was previously recorded for ${date} (${existingSnap.size} entries). Submitting will safely update the records.`, "info");
+        const subtitleEl = document.getElementById("rosterSubtitle");
+        if (subtitleEl) {
+          subtitleEl.innerHTML = `Session Details: <strong>${classId}</strong> &bull; <strong>${subjectId}</strong> &bull; Date: <strong>${date}</strong> &bull; Time: <strong>${formattedTime}</strong> &bull; Duration: <strong>${durationHours} Hour${durationHours > 1 ? 's' : ''}</strong>`;
+        }
+
+        if (matchedTime) {
+          showAlert(`⚠️ Attendance was previously recorded for ${date} at ${formattedTime}. Submitting will update these records.`, "info");
+        } else if (existingSnap.size > 0) {
+          showAlert(`ℹ️ Previous sessions exist for ${date}. This session at ${formattedTime} (${durationHours} hr${durationHours > 1 ? 's' : ''}) will be recorded.`, "info");
         } else {
-          showAlert(`Loaded ${currentStudents.length} students. Review and click 'Save & Submit Attendance'.`, "success");
+          showAlert(`Loaded ${currentStudents.length} students for ${date} at ${formattedTime}. Mark attendance and save.`, "success");
         }
 
         rosterSection.style.display = "block";
@@ -357,26 +511,60 @@
       document.getElementById("absentCount").textContent = absent;
     }
 
-    // Submit attendance with Deterministic Duplicate Prevention
+    // Submit attendance with Deterministic Duplicate Prevention and Date/Time/Hours tracking
     async function submitAttendance() {
       const classId = classSelect.value;
       const subjectId = subjectSelect.value;
       const date = dateInput.value;
+      const rawTime = timeInput.value || "09:00";
+      const formattedTime = formatTime12h(rawTime);
+      const durationHours = parseInt(hoursInput.value, 10) || 1;
       const teacherId = auth.currentUser ? auth.currentUser.uid : "ADMIN";
 
       if (!currentStudents.length) return;
+
+      // Department Boundary Enforcement: ISE faculty only ISE, CSE faculty only CSE
+      if (currentTeacherBranch === "ISE") {
+        if (isCseItem(classId) || isCseItem(subjectId)) {
+          alert("❌ Submission Blocked!\n\nISE Faculty can only submit attendance for ISE classes and ISE courses.");
+          showAlert("Error: Unauthorized class/subject submission for ISE faculty.", "danger");
+          return;
+        }
+      } else if (currentTeacherBranch === "CSE") {
+        if (isIseItem(classId) || isIseItem(subjectId)) {
+          alert("❌ Submission Blocked!\n\nCSE Faculty can only submit attendance for CSE classes and CSE courses.");
+          showAlert("Error: Unauthorized class/subject submission for CSE faculty.", "danger");
+          return;
+        }
+      }
 
       submitBtn.disabled = true;
       submitBtn.textContent = "Saving records to Firestore...";
 
       try {
+        // Resolve teacher display name
+        let currentTeacherName = "FACULTY";
+        if (auth.currentUser) {
+          try {
+            const uDoc = await db.collection("users").doc(auth.currentUser.uid).get();
+            if (uDoc.exists && uDoc.data().name) {
+              currentTeacherName = uDoc.data().name.toUpperCase();
+            } else if (auth.currentUser.displayName) {
+              currentTeacherName = auth.currentUser.displayName.toUpperCase();
+            } else if (auth.currentUser.email) {
+              currentTeacherName = auth.currentUser.email.split("@")[0].toUpperCase();
+            }
+          } catch (e) {}
+        }
+
         const batch = db.batch();
         const now = new Date().toISOString();
+        const cleanTime = rawTime.replace(/[^0-9]/g, "");
 
         currentStudents.forEach(student => {
-          // Deterministic Document ID: {studentId}_{subjectId}_{classId}_{date}
-          // Prevents duplicate entries! A repeat submission automatically updates this doc.
-          const docId = `${student.id}_${subjectId}_${classId}_${date}`.replace(/[\/\s]/g, "_");
+          // Document ID: {studentId}_{subjectId}_{classId}_{date}_{cleanTime}
+          // Safely ensures multiple sessions in a single day (e.g. morning vs afternoon) don't overwrite each other
+          const docId = `${student.id}_${subjectId}_${classId}_${date}_${cleanTime}`.replace(/[\/\s:]/g, "_");
           const docRef = db.collection("attendance").doc(docId);
 
           batch.set(docRef, {
@@ -389,8 +577,12 @@
             classId: classId,
             subjectId: subjectId,
             teacherId: teacherId,
+            teacherName: currentTeacherName,
             teacherEmail: auth.currentUser ? auth.currentUser.email : "",
             date: date,
+            time: formattedTime,
+            rawTime: rawTime,
+            hours: durationHours,
             status: student.status,
             updatedAt: now,
             createdAt: now
@@ -399,7 +591,7 @@
 
         await batch.commit();
 
-        showAlert(`✅ Successfully recorded attendance for ${currentStudents.length} students on ${date}!`, "success");
+        showAlert(`✅ Attendance saved successfully for ${currentStudents.length} students on ${date} at ${formattedTime} (${durationHours} Hour${durationHours > 1 ? 's' : ''})!`, "success");
         window.scrollTo({ top: 0, behavior: 'smooth' });
       } catch (err) {
         showAlert("Failed to submit attendance: " + err.message, "danger");

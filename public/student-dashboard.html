@@ -59,7 +59,7 @@
           <thead>
             <tr>
               <th>Subject</th>
-              <th style="text-align: center;">Total Classes</th>
+              <th style="text-align: center;">Total Hours</th>
               <th style="text-align: center;">Attended (Present)</th>
               <th style="text-align: center;">Absent</th>
               <th style="text-align: center;">Percentage</th>
@@ -86,7 +86,8 @@
         <table class="table">
           <thead>
             <tr>
-              <th>Date</th>
+              <th>Date & Time</th>
+              <th>Duration</th>
               <th>Subject</th>
               <th>Class</th>
               <th>Status</th>
@@ -94,7 +95,7 @@
           </thead>
           <tbody id="attendanceLogsBody">
             <tr>
-              <td colspan="4" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">
+              <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">
                 Loading attendance history...
               </td>
             </tr>
@@ -230,44 +231,49 @@
             return;
           }
 
-          // Compute subject-wise statistics
+          // Compute subject-wise statistics using session hours
           const statsBySubject = {};
-          let totalClassesOverall = 0;
-          let totalPresentOverall = 0;
+          let totalHoursOverall = 0;
+          let totalPresentHoursOverall = 0;
 
           const records = Array.from(recordsMap.values());
           records.forEach(data => {
             const subj = data.subjectId || "General";
+            const sHours = Number(data.hours) || 1;
             if (!statsBySubject[subj]) {
-              statsBySubject[subj] = { total: 0, present: 0, absent: 0 };
+              statsBySubject[subj] = { totalHours: 0, presentHours: 0, absentHours: 0 };
             }
 
-            statsBySubject[subj].total += 1;
-            totalClassesOverall += 1;
+            statsBySubject[subj].totalHours += sHours;
+            totalHoursOverall += sHours;
 
             if (data.status === "Present") {
-              statsBySubject[subj].present += 1;
-              totalPresentOverall += 1;
+              statsBySubject[subj].presentHours += sHours;
+              totalPresentHoursOverall += sHours;
             } else {
-              statsBySubject[subj].absent += 1;
+              statsBySubject[subj].absentHours += sHours;
             }
           });
 
-          // Sort records descending by date
-          records.sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+          // Sort records descending by date and time
+          records.sort((a, b) => {
+            const dateCmp = (b.date || "").localeCompare(a.date || "");
+            if (dateCmp !== 0) return dateCmp;
+            return (b.rawTime || b.time || "").localeCompare(a.rawTime || a.time || "");
+          });
 
           // Render Subject Table
           subjectBody.innerHTML = Object.keys(statsBySubject).map(subj => {
             const item = statsBySubject[subj];
-            const pct = item.total > 0 ? Math.round((item.present / item.total) * 100) : 0;
+            const pct = item.totalHours > 0 ? Math.round((item.presentHours / item.totalHours) * 100) : 0;
             const isEligible = pct >= 75;
 
             return `
               <tr>
                 <td><strong>${subj}</strong></td>
-                <td style="text-align: center;">${item.total}</td>
-                <td style="text-align: center; color: var(--success); font-weight: 600;">${item.present}</td>
-                <td style="text-align: center; color: var(--danger); font-weight: 600;">${item.absent}</td>
+                <td style="text-align: center;"><strong>${item.totalHours}</strong> hrs</td>
+                <td style="text-align: center; color: var(--success); font-weight: 600;">${item.presentHours} hrs</td>
+                <td style="text-align: center; color: var(--danger); font-weight: 600;">${item.absentHours} hrs</td>
                 <td style="text-align: center;">
                   <strong>${pct}%</strong>
                   <div class="progress-bar-container">
@@ -284,23 +290,31 @@
           }).join("");
 
           // Render Overall Percentage
-          const overallPct = totalClassesOverall > 0 ? Math.round((totalPresentOverall / totalClassesOverall) * 100) : 0;
+          const overallPct = totalHoursOverall > 0 ? Math.round((totalPresentHoursOverall / totalHoursOverall) * 100) : 0;
           document.getElementById("overallPercentage").textContent = `${overallPct}%`;
           document.getElementById("overallPercentage").style.color = overallPct >= 75 ? 'var(--success)' : 'var(--danger)';
 
           // Render Logs Table
-          logsBody.innerHTML = records.slice(0, 25).map(r => `
-            <tr>
-              <td>${r.date || "-"}</td>
-              <td>${r.subjectId || "-"}</td>
-              <td>${r.classId || "-"}</td>
-              <td>
-                <span class="badge ${r.status === 'Present' ? 'badge-present' : 'badge-absent'}">
-                  ${r.status || "-"}
-                </span>
-              </td>
-            </tr>
-          `).join("");
+          logsBody.innerHTML = records.slice(0, 30).map(r => {
+            const timeDisplay = r.time ? `<div style="font-size:0.75rem; color:var(--text-muted); margin-top:0.2rem;">⏰ ${r.time}</div>` : "";
+            const hoursDisplay = `<span class="badge" style="background:#e0f2fe; color:#0369a1; font-size:0.75rem;">${r.hours || 1} hr${(r.hours || 1) > 1 ? 's' : ''}</span>`;
+            return `
+              <tr>
+                <td>
+                  <strong>${r.date || "-"}</strong>
+                  ${timeDisplay}
+                </td>
+                <td>${hoursDisplay}</td>
+                <td><strong>${r.subjectId || "-"}</strong></td>
+                <td>${r.classId || "-"}</td>
+                <td>
+                  <span class="badge ${r.status === 'Present' ? 'badge-present' : 'badge-absent'}">
+                    ${r.status || "-"}
+                  </span>
+                </td>
+              </tr>
+            `;
+          }).join("");
 
         } catch (err) {
           console.error("Error loading student attendance:", err);

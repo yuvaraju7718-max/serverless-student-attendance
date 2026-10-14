@@ -83,6 +83,10 @@
         <div class="stat-value" id="totalSessionsVal">0</div>
       </div>
       <div class="stat-card">
+        <div class="stat-label">Total Hours Taught</div>
+        <div class="stat-value" id="totalHoursVal">0 hrs</div>
+      </div>
+      <div class="stat-card">
         <div class="stat-label">Students Tracked</div>
         <div class="stat-value" id="totalStudentsVal">0</div>
       </div>
@@ -92,9 +96,41 @@
       </div>
     </div>
 
-    <!-- Report Table Card -->
+    <!-- Session History Log Card (When Taken, Date, Time, Duration) -->
+    <div class="card" id="sessionHistoryCard" style="display: none; margin-bottom: 1.5rem;">
+      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.75rem;">
+        <div>
+          <h3 class="card-title" style="margin-bottom: 0.2rem;">📅 Class Session Log (When Attendance Was Taken)</h3>
+          <p class="card-subtitle" style="margin-bottom: 0;">Detailed timeline of dates, session times, duration in hours, and attending faculty.</p>
+        </div>
+        <span id="sessionLogCountBadge" class="badge" style="background: #dbeafe; color: #1e40af; font-size: 0.85rem;">0 Sessions</span>
+      </div>
+
+      <div class="table-responsive">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Time Taken</th>
+              <th>Duration (Hours)</th>
+              <th>Class</th>
+              <th>Subject</th>
+              <th>Teacher / Faculty</th>
+              <th style="text-align: center;">Present</th>
+              <th style="text-align: center;">Absent</th>
+              <th style="text-align: center;">Turnout %</th>
+            </tr>
+          </thead>
+          <tbody id="sessionHistoryTableBody">
+            <!-- Dynamic session rows -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Student Attendance Summary Table Card -->
     <div class="card" id="reportTableCard" style="display: none;">
-      <h3 class="card-title" id="reportTitle">Class Attendance Summary</h3>
+      <h3 class="card-title" id="reportTitle">Student Cumulative Attendance Summary</h3>
       
       <div class="table-responsive" style="margin-top: 1rem;">
         <table class="table">
@@ -102,9 +138,9 @@
             <tr>
               <th>Roll Number</th>
               <th>Student Name</th>
-              <th style="text-align: center;">Total Classes</th>
-              <th style="text-align: center;">Attended (Present)</th>
-              <th style="text-align: center;">Absent</th>
+              <th style="text-align: center;">Total Hours</th>
+              <th style="text-align: center;">Attended Hours</th>
+              <th style="text-align: center;">Absent Hours</th>
               <th style="text-align: center;">Attendance %</th>
               <th>Eligibility Status</th>
             </tr>
@@ -201,48 +237,114 @@
           }
         });
 
-        // Compute unique sessions (dates)
-        const uniqueDates = new Set(records.map(r => r.date));
-        const totalSessions = uniqueDates.size;
-
-        // Tally per student
-        const studentStats = {};
-        students.forEach(s => {
-          studentStats[s.id] = { student: s, total: 0, present: 0, absent: 0 };
-        });
-
-        let grandTotal = 0;
-        let grandPresent = 0;
-
+        // Group attendance records into distinct class sessions
+        const sessionsMap = {};
         records.forEach(r => {
-          const sid = r.studentId;
-          if (!studentStats[sid]) {
-            studentStats[sid] = {
-              student: { rollNumber: r.rollNumber || "N/A", name: r.studentName || "Student" },
-              total: 0,
+          const sessionTime = r.time || (r.createdAt ? new Date(r.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "General");
+          const sessionHours = Number(r.hours) || 1;
+          const sessionKey = `${r.date}_${r.rawTime || r.time || 'default'}_${r.subjectId}_${r.classId}`;
+
+          if (!sessionsMap[sessionKey]) {
+            sessionsMap[sessionKey] = {
+              date: r.date || "-",
+              time: sessionTime,
+              rawTime: r.rawTime || "",
+              hours: sessionHours,
+              classId: r.classId || classId,
+              subjectId: r.subjectId || subjectId || "-",
+              teacher: (r.teacherName || r.teacherEmail || "Faculty").toUpperCase(),
               present: 0,
-              absent: 0
+              absent: 0,
+              total: 0
             };
           }
 
-          studentStats[sid].total += 1;
-          grandTotal += 1;
-
+          sessionsMap[sessionKey].total += 1;
           if (r.status === "Present") {
-            studentStats[sid].present += 1;
-            grandPresent += 1;
+            sessionsMap[sessionKey].present += 1;
           } else {
-            studentStats[sid].absent += 1;
+            sessionsMap[sessionKey].absent += 1;
           }
         });
 
-        // Render Summary
-        document.getElementById("totalSessionsVal").textContent = totalSessions;
+        const sessionsList = Object.values(sessionsMap);
+        // Sort sessions descending: latest date first, then latest time
+        sessionsList.sort((a, b) => {
+          const dateCmp = (b.date || "").localeCompare(a.date || "");
+          if (dateCmp !== 0) return dateCmp;
+          return (b.rawTime || b.time || "").localeCompare(a.rawTime || a.time || "");
+        });
+
+        // Compute total hours taught across sessions
+        const totalHoursTaught = sessionsList.reduce((acc, s) => acc + (s.hours || 1), 0);
+
+        // Render Session History Table
+        const sessionHistoryCard = document.getElementById("sessionHistoryCard");
+        const sessionHistoryBody = document.getElementById("sessionHistoryTableBody");
+        document.getElementById("sessionLogCountBadge").textContent = `${sessionsList.length} Session${sessionsList.length !== 1 ? 's' : ''}`;
+
+        if (!sessionsList.length) {
+          sessionHistoryBody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding:1.5rem; color:var(--text-muted);">No attendance sessions found in the selected date range.</td></tr>`;
+        } else {
+          sessionHistoryBody.innerHTML = sessionsList.map(s => {
+            const turnoutPct = s.total > 0 ? Math.round((s.present / s.total) * 100) : 0;
+            return `
+              <tr>
+                <td><strong>${s.date}</strong></td>
+                <td><span class="badge" style="background:#f1f5f9; color:#334155;">⏰ ${s.time}</span></td>
+                <td><span class="badge" style="background:#e0f2fe; color:#0369a1;">${s.hours} Hour${s.hours > 1 ? 's' : ''}</span></td>
+                <td>${s.classId}</td>
+                <td><strong>${s.subjectId}</strong></td>
+                <td>${s.teacher}</td>
+                <td style="text-align: center; color: var(--success); font-weight: 600;">${s.present}</td>
+                <td style="text-align: center; color: var(--danger); font-weight: 600;">${s.absent}</td>
+                <td style="text-align: center;"><strong>${turnoutPct}%</strong></td>
+              </tr>
+            `;
+          }).join("");
+        }
+        sessionHistoryCard.style.display = "block";
+
+        // Tally per student with hours
+        const studentStats = {};
+        students.forEach(s => {
+          studentStats[s.id] = { student: s, totalHours: 0, presentHours: 0, absentHours: 0 };
+        });
+
+        let grandTotalHours = 0;
+        let grandPresentHours = 0;
+
+        records.forEach(r => {
+          const sid = r.studentId;
+          const sHours = Number(r.hours) || 1;
+          if (!studentStats[sid]) {
+            studentStats[sid] = {
+              student: { rollNumber: r.rollNumber || "N/A", name: (r.studentName || "Student").toUpperCase() },
+              totalHours: 0,
+              presentHours: 0,
+              absentHours: 0
+            };
+          }
+
+          studentStats[sid].totalHours += sHours;
+          grandTotalHours += sHours;
+
+          if (r.status === "Present") {
+            studentStats[sid].presentHours += sHours;
+            grandPresentHours += sHours;
+          } else {
+            studentStats[sid].absentHours += sHours;
+          }
+        });
+
+        // Render Summary Metrics Cards
+        document.getElementById("totalSessionsVal").textContent = sessionsList.length;
+        document.getElementById("totalHoursVal").textContent = `${totalHoursTaught} hrs`;
         document.getElementById("totalStudentsVal").textContent = students.length;
-        const avgPct = grandTotal > 0 ? Math.round((grandPresent / grandTotal) * 100) : 0;
+        const avgPct = grandTotalHours > 0 ? Math.round((grandPresentHours / grandTotalHours) * 100) : 0;
         document.getElementById("avgAttendanceVal").textContent = `${avgPct}%`;
 
-        // Render Table
+        // Render Student Summary Table
         const sortedStudents = Object.values(studentStats);
         sortedStudents.sort((a, b) => (a.student.rollNumber || "").localeCompare(b.student.rollNumber || "", undefined, { numeric: true }));
 
@@ -251,7 +353,7 @@
           tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:1.5rem;">No student records found.</td></tr>`;
         } else {
           tbody.innerHTML = sortedStudents.map(item => {
-            const pct = item.total > 0 ? Math.round((item.present / item.total) * 100) : 0;
+            const pct = item.totalHours > 0 ? Math.round((item.presentHours / item.totalHours) * 100) : 0;
             const isEligible = pct >= 75;
 
             const photo = item.student.photoUrl || "";
@@ -265,12 +367,12 @@
                 <td>
                   <div class="user-badge-cell">
                     ${photoHtml}
-                    <span>${item.student.name || "-"}</span>
+                    <span>${(item.student.name || "-").toUpperCase()}</span>
                   </div>
                 </td>
-                <td style="text-align: center;">${item.total}</td>
-                <td style="text-align: center; color: var(--success); font-weight: 600;">${item.present}</td>
-                <td style="text-align: center; color: var(--danger); font-weight: 600;">${item.absent}</td>
+                <td style="text-align: center;"><strong>${item.totalHours}</strong> hrs</td>
+                <td style="text-align: center; color: var(--success); font-weight: 600;">${item.presentHours} hrs</td>
+                <td style="text-align: center; color: var(--danger); font-weight: 600;">${item.absentHours} hrs</td>
                 <td style="text-align: center;">
                   <strong>${pct}%</strong>
                   <div class="progress-bar-container">

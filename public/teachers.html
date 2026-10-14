@@ -209,6 +209,75 @@
       assignCard.style.display = assignCard.style.display === "none" ? "block" : "none";
     }
 
+    let cachedClasses = [];
+    let cachedSubjects = [];
+    let cachedTeachers = [];
+
+    function isCseItem(str) {
+      const s = (str || "").toUpperCase();
+      return s.includes("CSE") || s.includes("COMPUTER") || s.includes("CS") || s.startsWith("CS");
+    }
+
+    function isIseItem(str) {
+      const s = (str || "").toUpperCase();
+      return s.includes("ISE") || s.includes("INFORMATION") || s.includes("IS") || s.startsWith("IS");
+    }
+
+    function getTeacherBranch(t) {
+      const str = `${t.department || ""} ${t.email || ""} ${t.name || ""}`.toUpperCase();
+      if (str.includes("ISE") || str.includes("INFORMATION") || str.includes("IS")) return "ISE";
+      if (str.includes("CSE") || str.includes("COMPUTER") || str.includes("CS")) return "CSE";
+      return null;
+    }
+
+    function onAssignTeacherChange() {
+      const teacherSelect = document.getElementById("assignTeacherSelect");
+      const classSelect = document.getElementById("assignClassSelect");
+      const subjectSelect = document.getElementById("assignSubjectSelect");
+      const selectedId = teacherSelect.value;
+
+      if (!selectedId) {
+        classSelect.innerHTML = '<option value="">-- Choose Class --</option>';
+        subjectSelect.innerHTML = '<option value="">-- Choose Subject --</option>';
+        return;
+      }
+
+      const selectedTeacher = cachedTeachers.find(t => t.id === selectedId);
+      const branch = selectedTeacher ? getTeacherBranch(selectedTeacher) : null;
+
+      let filteredClasses = cachedClasses;
+      let filteredSubjects = cachedSubjects;
+
+      if (branch === "ISE") {
+        filteredClasses = cachedClasses.filter(c => {
+          const str = `${c.name || c.id} ${c.department || ''}`;
+          return isIseItem(str) && !isCseItem(str);
+        });
+        filteredSubjects = cachedSubjects.filter(s => {
+          const str = `${s.code || s.id} ${s.name || ''} ${s.department || ''}`;
+          return isIseItem(str) && !isCseItem(str);
+        });
+      } else if (branch === "CSE") {
+        filteredClasses = cachedClasses.filter(c => {
+          const str = `${c.name || c.id} ${c.department || ''}`;
+          return isCseItem(str) && !isIseItem(str);
+        });
+        filteredSubjects = cachedSubjects.filter(s => {
+          const str = `${s.code || s.id} ${s.name || ''} ${s.department || ''}`;
+          return isCseItem(str) && !isIseItem(str);
+        });
+      }
+
+      classSelect.innerHTML = '<option value="">-- Choose Class --</option>' +
+        filteredClasses.map(c => {
+          const label = c.displayName || `${c.name || c.id} (Sem ${c.semester || '-'})`;
+          return `<option value="${c.id}">${label}</option>`;
+        }).join("");
+
+      subjectSelect.innerHTML = '<option value="">-- Choose Subject --</option>' +
+        filteredSubjects.map(s => `<option value="${s.id}" data-name="${s.name}">${s.code || s.id} - ${s.name}</option>`).join("");
+    }
+
     async function loadTeachersAndAssignments() {
       if (!db) return;
       try {
@@ -220,6 +289,10 @@
           db.collection("users").get()
         ]);
 
+        cachedTeachers = teachersSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        cachedClasses = classesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        cachedSubjects = subjectsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+
         const userPhotos = {};
         usersSnap.forEach(d => {
           const u = d.data();
@@ -229,22 +302,17 @@
           }
         });
 
-        // Populate Assign Form dropdowns
+        // Populate Assign Form teacher dropdown
         const teacherSelect = document.getElementById("assignTeacherSelect");
         teacherSelect.innerHTML = '<option value="">-- Choose Teacher --</option>' +
-          teachersSnap.docs.map(d => `<option value="${d.id}" data-name="${d.data().name}">${d.data().name} (${d.data().department || 'Faculty'})</option>`).join("");
-
-        const classSelect = document.getElementById("assignClassSelect");
-        classSelect.innerHTML = '<option value="">-- Choose Class --</option>' +
-          classesSnap.docs.map(d => {
-            const data = d.data();
-            const label = data.displayName || `${data.name || d.id} (Sem ${data.semester || '-'})`;
-            return `<option value="${d.id}">${label}</option>`;
+          cachedTeachers.map(t => {
+            const branch = getTeacherBranch(t);
+            const branchLabel = branch ? `[${branch}] ` : '';
+            return `<option value="${t.id}" data-name="${t.name}">${branchLabel}${t.name} (${t.department || 'Faculty'})</option>`;
           }).join("");
 
-        const subjectSelect = document.getElementById("assignSubjectSelect");
-        subjectSelect.innerHTML = '<option value="">-- Choose Subject --</option>' +
-          subjectsSnap.docs.map(d => `<option value="${d.id}" data-name="${d.data().name}">${d.data().code || d.id} - ${d.data().name}</option>`).join("");
+        teacherSelect.onchange = onAssignTeacherChange;
+        onAssignTeacherChange();
 
         // Map assignments by teacherId
         const assignmentsByTeacher = {};
@@ -417,6 +485,23 @@
       const subjectSelect = document.getElementById("assignSubjectSelect");
       const subjectId = subjectSelect.value;
       const subjectName = subjectSelect.options[subjectSelect.selectedIndex].getAttribute("data-name");
+
+      const selectedTeacher = cachedTeachers.find(t => t.id === teacherId);
+      const branch = selectedTeacher ? getTeacherBranch(selectedTeacher) : null;
+
+      if (branch === "ISE") {
+        if (isCseItem(classId) || isCseItem(subjectId)) {
+          alert("❌ Department Mismatch!\n\nISE Faculty can ONLY be assigned to Information Science (ISE) classes and courses.");
+          showAlert("Error: ISE teachers can only be assigned to ISE classes and ISE subjects.", "danger");
+          return;
+        }
+      } else if (branch === "CSE") {
+        if (isIseItem(classId) || isIseItem(subjectId)) {
+          alert("❌ Department Mismatch!\n\nCSE Faculty can ONLY be assigned to Computer Science (CSE) classes and courses.");
+          showAlert("Error: CSE teachers can only be assigned to CSE classes and CSE subjects.", "danger");
+          return;
+        }
+      }
 
       try {
         const asgnId = `${teacherId}_${classId}_${subjectId}`.replace(/[\/\s]/g, '_');

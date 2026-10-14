@@ -68,11 +68,11 @@
         <table class="table">
           <thead>
             <tr>
-              <th>Date</th>
+              <th>Date & Time</th>
+              <th>Duration</th>
               <th>Class</th>
               <th>Subject</th>
-              <th>Student Roll No</th>
-              <th>Status</th>
+              <th style="text-align: right;">Session Report</th>
             </tr>
           </thead>
           <tbody id="teacherHistoryTable">
@@ -86,6 +86,68 @@
       </div>
     </div>
   </main>
+
+  <!-- Session Report Modal -->
+  <div id="sessionReportModal" style="display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); z-index: 1000; align-items: center; justify-content: center; padding: 1rem;">
+    <div class="card" style="width: 100%; max-width: 650px; max-height: 90vh; display: flex; flex-direction: column; margin-bottom: 0; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.2);">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem; border-bottom: 1px solid var(--border); padding-bottom: 0.75rem;">
+        <div>
+          <h3 class="card-title" style="margin-bottom: 0.2rem; display: flex; align-items: center; gap: 0.5rem;">
+            📊 Class Session Attendance Report
+          </h3>
+          <p id="modalSessionSubtitle" class="card-subtitle" style="margin-bottom: 0; font-size: 0.85rem; color: var(--text-muted);"></p>
+        </div>
+        <button onclick="closeSessionReport()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-muted); line-height: 1;">&times;</button>
+      </div>
+
+      <!-- Quick Session Stats -->
+      <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.75rem; margin-bottom: 1rem; text-align: center;">
+        <div style="background: #f8fafc; border: 1px solid var(--border); border-radius: 6px; padding: 0.5rem;">
+          <div style="font-size: 0.75rem; color: var(--text-muted);">Total Enrolled</div>
+          <div id="modalTotalStudents" style="font-size: 1.25rem; font-weight: 700;">0</div>
+        </div>
+        <div style="background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 6px; padding: 0.5rem;">
+          <div style="font-size: 0.75rem; color: #047857;">Present</div>
+          <div id="modalPresentCount" style="font-size: 1.25rem; font-weight: 700; color: var(--success);">0</div>
+        </div>
+        <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 6px; padding: 0.5rem;">
+          <div style="font-size: 0.75rem; color: #b91c1c;">Absent</div>
+          <div id="modalAbsentCount" style="font-size: 1.25rem; font-weight: 700; color: var(--danger);">0</div>
+        </div>
+        <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; padding: 0.5rem;">
+          <div style="font-size: 0.75rem; color: #1d4ed8;">Turnout %</div>
+          <div id="modalTurnoutPct" style="font-size: 1.25rem; font-weight: 700; color: var(--primary);">0%</div>
+        </div>
+      </div>
+
+      <!-- Student List Table inside modal -->
+      <div class="table-responsive" style="flex: 1; overflow-y: auto; max-height: 45vh; border: 1px solid var(--border); border-radius: 6px;">
+        <table class="table" style="margin-bottom: 0;">
+          <thead style="position: sticky; top: 0; background: var(--surface); z-index: 2;">
+            <tr>
+              <th style="width: 60px;">S.No</th>
+              <th>Roll Number</th>
+              <th>Student Name</th>
+              <th style="text-align: center; width: 120px;">Status</th>
+            </tr>
+          </thead>
+          <tbody id="modalStudentRosterBody">
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Modal Footer -->
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1rem; border-top: 1px solid var(--border); padding-top: 0.75rem;">
+        <a id="modalFullReportLink" href="reports.html" class="btn btn-secondary btn-sm" style="font-size: 0.8rem;">
+          📈 View Cumulative Report &rarr;
+        </a>
+        <div style="display: flex; gap: 0.5rem;">
+          <button onclick="window.print()" class="btn btn-secondary btn-sm">🖨️ Print</button>
+          <button onclick="closeSessionReport()" class="btn btn-primary btn-sm">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <footer>
     <p>Serverless Student Attendance Management System &bull; Faculty Portal</p>
@@ -123,14 +185,38 @@
             avatarInit.textContent = teacherName.charAt(0).toUpperCase();
           }
 
+          let teacherDept = userData.department || "";
+          let teacherEmail = user.email || "";
+
+          // Helper functions to identify branch
+          const isCseItem = str => {
+            const s = (str || "").toUpperCase();
+            return s.includes("CSE") || s.includes("COMPUTER") || s.includes("CS") || s.startsWith("CS");
+          };
+          const isIseItem = str => {
+            const s = (str || "").toUpperCase();
+            return s.includes("ISE") || s.includes("INFORMATION") || s.includes("IS") || s.startsWith("IS");
+          };
+          const detectBranch = (dept, email, name) => {
+            const str = `${dept || ""} ${email || ""} ${name || ""}`.toUpperCase();
+            if (str.includes("ISE") || str.includes("INFORMATION") || str.includes("IS")) return "ISE";
+            if (str.includes("CSE") || str.includes("COMPUTER") || str.includes("CS")) return "CSE";
+            return null;
+          };
+
           // 2. Resolve teacher's assignments flexibly (by Auth UID, teacher doc ID, email, or name)
           const possibleTeacherIds = [user.uid];
           try {
             const teacherByEmail = await db.collection("teachers").where("email", "==", user.email).get();
-            teacherByEmail.forEach(d => possibleTeacherIds.push(d.id));
+            teacherByEmail.forEach(d => {
+              possibleTeacherIds.push(d.id);
+              if (!teacherDept && d.data().department) teacherDept = d.data().department;
+            });
           } catch (e) {
             console.warn("Could not query teachers by email:", e);
           }
+
+          const teacherBranch = detectBranch(teacherDept, teacherEmail, teacherName);
 
           const allAsgnsSnap = await db.collection("assignments").get();
           const myAssignments = [];
@@ -143,19 +229,35 @@
             const matchesName = data.teacherName && teacherName && data.teacherName.toLowerCase() === teacherName.toLowerCase();
 
             if (matchesId || matchesEmail || matchesName) {
-              myAssignments.push({ id: doc.id, ...data });
-              if (data.classId) myClassIds.add(data.classId);
+              const classStr = data.classId || "";
+              const subStr = `${data.subjectId || ""} ${data.subjectName || ""}`;
+
+              if (teacherBranch === "ISE") {
+                if (isIseItem(classStr) || isIseItem(subStr)) {
+                  myAssignments.push({ id: doc.id, ...data });
+                  if (data.classId) myClassIds.add(data.classId);
+                }
+              } else if (teacherBranch === "CSE") {
+                if (isCseItem(classStr) || isCseItem(subStr)) {
+                  myAssignments.push({ id: doc.id, ...data });
+                  if (data.classId) myClassIds.add(data.classId);
+                }
+              } else {
+                myAssignments.push({ id: doc.id, ...data });
+                if (data.classId) myClassIds.add(data.classId);
+              }
             }
           });
 
           const listContainer = document.getElementById("assignedList");
 
           if (myAssignments.length === 0) {
+            const branchNotice = teacherBranch ? ` (${teacherBranch} Faculty)` : '';
             listContainer.innerHTML = `
               <div style="grid-column: 1 / -1; background: #fffbeb; border: 1px solid #fef3c7; padding: 1.5rem; border-radius: 8px; color: #92400e;">
-                <h4 style="margin-bottom: 0.5rem;">No Specific Assignment Found for ${user.email}</h4>
+                <h4 style="margin-bottom: 0.5rem;">No Specific Assignment Found for ${user.email}${branchNotice}</h4>
                 <p style="font-size: 0.9rem; margin-bottom: 1rem;">
-                  The administrator has not yet assigned a class or subject to your faculty profile in the Admin portal.
+                  The administrator has not yet assigned an authorized ${teacherBranch || ''} class or subject to your faculty profile in the Admin portal.
                 </p>
                 <a href="attendance.html" class="btn btn-primary btn-sm">Go to Attendance Portal &rarr;</a>
               </div>
@@ -179,9 +281,9 @@
             }).join("");
           }
 
-          // 3. Fetch recent attendance (sorted in JavaScript to avoid composite index requirement)
+          // 3. Fetch recent attendance sessions (grouped by class session instead of listing individual students)
           const historyTable = document.getElementById("teacherHistoryTable");
-          let attendanceRecords = [];
+          const sessionsMap = {};
 
           try {
             const attendanceSnap = await db.collection("attendance").get();
@@ -192,33 +294,69 @@
               const matchesClass = myClassIds.has(row.classId);
 
               if (matchesTeacher || matchesClass) {
-                attendanceRecords.push(row);
+                const classStr = row.classId || "";
+                const subStr = row.subjectId || "";
+
+                if (teacherBranch === "ISE" && !isIseItem(classStr) && !isIseItem(subStr)) return;
+                if (teacherBranch === "CSE" && !isCseItem(classStr) && !isCseItem(subStr)) return;
+
+                const sKey = `${row.date}_${row.rawTime || row.time || 'default'}_${row.subjectId}_${row.classId}`;
+                if (!sessionsMap[sKey]) {
+                  sessionsMap[sKey] = {
+                    id: sKey,
+                    date: row.date || "-",
+                    time: row.time || (row.createdAt ? new Date(row.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ""),
+                    rawTime: row.rawTime || "",
+                    hours: Number(row.hours) || 1,
+                    classId: row.classId || "-",
+                    subjectId: row.subjectId || "-",
+                    students: []
+                  };
+                }
+
+                sessionsMap[sKey].students.push({
+                  rollNumber: row.rollNumber || "N/A",
+                  name: (row.studentName || "Student").toUpperCase(),
+                  status: row.status || "Present"
+                });
               }
             });
           } catch (attErr) {
             console.warn("Error reading attendance:", attErr);
           }
 
-          // Sort descending by date in JavaScript
-          attendanceRecords.sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+          window.cachedSessions = sessionsMap;
+          const sessionList = Object.values(sessionsMap);
 
-          if (attendanceRecords.length === 0) {
-            historyTable.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">No attendance recorded yet. Click 'Mark Attendance Now' above to take attendance.</td></tr>`;
+          // Sort sessions descending by date and time
+          sessionList.sort((a, b) => {
+            const dateCmp = (b.date || "").localeCompare(a.date || "");
+            if (dateCmp !== 0) return dateCmp;
+            return (b.rawTime || b.time || "").localeCompare(a.rawTime || a.time || "");
+          });
+
+          if (sessionList.length === 0) {
+            historyTable.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">No attendance sessions recorded yet. Click 'Mark Attendance Now' above to take attendance.</td></tr>`;
             return;
           }
 
-          historyTable.innerHTML = attendanceRecords.slice(0, 15).map(row => {
-            const isPresent = row.status === "Present";
+          historyTable.innerHTML = sessionList.map(s => {
+            const timeDisplay = s.time ? `<div style="font-size:0.75rem; color:var(--text-muted); margin-top:0.2rem;">⏰ ${s.time}</div>` : "";
+            const hoursDisplay = `<span class="badge" style="background:#e0f2fe; color:#0369a1; font-weight:600; font-size:0.75rem;">${s.hours} hr${s.hours > 1 ? 's' : ''}</span>`;
+
             return `
               <tr>
-                <td>${row.date || "-"}</td>
-                <td>${row.classId || "-"}</td>
-                <td>${row.subjectId || "-"}</td>
-                <td><strong>${row.rollNumber || row.studentId || "-"}</strong></td>
                 <td>
-                  <span class="badge ${isPresent ? 'badge-present' : 'badge-absent'}">
-                    ${row.status || "-"}
-                  </span>
+                  <strong>${s.date}</strong>
+                  ${timeDisplay}
+                </td>
+                <td>${hoursDisplay}</td>
+                <td><strong>${s.classId}</strong></td>
+                <td>${s.subjectId}</td>
+                <td style="text-align: right; white-space: nowrap;">
+                  <button onclick="openSessionReport('${encodeURIComponent(s.id)}')" class="btn btn-primary btn-sm" style="padding: 0.25rem 0.65rem; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.35rem;">
+                    📊 View Report
+                  </button>
                 </td>
               </tr>
             `;
@@ -229,6 +367,53 @@
           document.getElementById("teacherHistoryTable").innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--danger); padding: 1.5rem;">Could not load records: ${err.message}</td></tr>`;
         }
       });
+    }
+
+    function openSessionReport(encodedKey) {
+      const sKey = decodeURIComponent(encodedKey);
+      const s = window.cachedSessions ? window.cachedSessions[sKey] : null;
+      if (!s) return;
+
+      const modal = document.getElementById("sessionReportModal");
+      document.getElementById("modalSessionSubtitle").textContent = 
+        `Class: ${s.classId} • Subject: ${s.subjectId} • Date: ${s.date} • Time: ${s.time || 'N/A'} • Duration: ${s.hours} hr(s)`;
+
+      const total = s.students.length;
+      const present = s.students.filter(x => x.status === "Present").length;
+      const absent = total - present;
+      const pct = total > 0 ? Math.round((present / total) * 100) : 0;
+
+      document.getElementById("modalTotalStudents").textContent = total;
+      document.getElementById("modalPresentCount").textContent = present;
+      document.getElementById("modalAbsentCount").textContent = absent;
+      document.getElementById("modalTurnoutPct").textContent = `${pct}%`;
+
+      // Sort students by roll number
+      const sortedStudents = [...s.students];
+      sortedStudents.sort((a, b) => (a.rollNumber || "").localeCompare(b.rollNumber || "", undefined, { numeric: true }));
+
+      document.getElementById("modalStudentRosterBody").innerHTML = sortedStudents.map((st, idx) => `
+        <tr>
+          <td>${idx + 1}</td>
+          <td><strong>${st.rollNumber}</strong></td>
+          <td>${st.name}</td>
+          <td style="text-align: center;">
+            <span class="badge ${st.status === 'Present' ? 'badge-present' : 'badge-absent'}">
+              ${st.status}
+            </span>
+          </td>
+        </tr>
+      `).join("");
+
+      document.getElementById("modalFullReportLink").href = 
+        `reports.html?classId=${encodeURIComponent(s.classId)}&subjectId=${encodeURIComponent(s.subjectId)}&startDate=${s.date}&endDate=${s.date}`;
+
+      modal.style.display = "flex";
+    }
+
+    function closeSessionReport() {
+      const modal = document.getElementById("sessionReportModal");
+      if (modal) modal.style.display = "none";
     }
 
     window.addEventListener("DOMContentLoaded", loadTeacherDashboard);
