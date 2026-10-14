@@ -78,29 +78,89 @@
       </form>
     </div>
 
-    <!-- Student List Table -->
-    <div class="card">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;">
-        <h3 class="card-title" style="margin-bottom: 0;">Registered Students</h3>
-        <input type="text" id="searchInput" class="form-control" placeholder="🔍 Search by USN or Name..." style="max-width: 280px;" oninput="filterStudents()" />
+    <!-- Search bar & Counter -->
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.75rem;">
+      <div style="font-weight: 600; color: var(--secondary);">
+        Department Directory View: <span style="color:var(--primary);">CSE</span> (Left) &bull; <span style="color:#0284c7;">ISE</span> (Right)
+      </div>
+      <input type="text" id="searchInput" class="form-control" placeholder="🔍 Search by USN, Name, or Class..." style="max-width: 320px;" oninput="filterStudents()" />
+    </div>
+
+    <!-- Side-by-Side CSE and ISE Student Tables -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 1.25rem;">
+      
+      <!-- LEFT SIDE: CSE Students -->
+      <div class="card" style="border-top: 4px solid var(--primary);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+          <h3 class="card-title" style="margin-bottom: 0; display: flex; align-items: center; gap: 0.5rem;">
+            💻 CSE Students <span id="cseStudentCount" class="badge" style="background:#dbeafe; color:#1e40af;">0</span>
+          </h3>
+          <span style="font-size: 0.8rem; color: var(--text-muted);">Computer Science & Engg</span>
+        </div>
+
+        <div class="table-responsive">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>USN</th>
+                <th>Student Name</th>
+                <th>Class</th>
+                <th style="text-align: right;">Action</th>
+              </tr>
+            </thead>
+            <tbody id="cseStudentsTableBody">
+              <tr>
+                <td colspan="4" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">Loading CSE students...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
 
+      <!-- RIGHT SIDE: ISE Students -->
+      <div class="card" style="border-top: 4px solid #0284c7;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+          <h3 class="card-title" style="margin-bottom: 0; display: flex; align-items: center; gap: 0.5rem;">
+            🌐 ISE Students <span id="iseStudentCount" class="badge" style="background:#e0f2fe; color:#0369a1;">0</span>
+          </h3>
+          <span style="font-size: 0.8rem; color: var(--text-muted);">Information Science & Engg</span>
+        </div>
+
+        <div class="table-responsive">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>USN</th>
+                <th>Student Name</th>
+                <th>Class</th>
+                <th style="text-align: right;">Action</th>
+              </tr>
+            </thead>
+            <tbody id="iseStudentsTableBody">
+              <tr>
+                <td colspan="4" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">Loading ISE students...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Fallback Card for Other Departments (if any) -->
+    <div class="card" id="otherStudentsCard" style="display: none; margin-top: 1.25rem;">
+      <h3 class="card-title">Other Enrolled Students</h3>
       <div class="table-responsive">
         <table class="table">
           <thead>
             <tr>
-              <th>USN / Roll Number</th>
+              <th>USN</th>
               <th>Student Name</th>
-              <th>Email</th>
               <th>Class</th>
-              <th style="text-align: right;">Actions</th>
+              <th style="text-align: right;">Action</th>
             </tr>
           </thead>
-          <tbody id="studentsTableBody">
-            <tr>
-              <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">Loading students...</td>
-            </tr>
-          </tbody>
+          <tbody id="otherStudentsTableBody"></tbody>
         </table>
       </div>
     </div>
@@ -170,36 +230,70 @@
       }
     }
 
-    function renderStudents(list) {
-      const tbody = document.getElementById("studentsTableBody");
-      if (!list.length) {
-        tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">No students found.</td></tr>`;
-        return;
+    function getStudentDept(s) {
+      const classStr = (s.classId || "").toUpperCase();
+      const usnStr = (s.rollNumber || "").toUpperCase();
+      const emailStr = (s.email || "").toUpperCase();
+
+      if (classStr.includes("CSE") || classStr.includes("CS") || usnStr.includes("CS") || emailStr.includes("CS")) {
+        return "CSE";
       }
+      if (classStr.includes("ISE") || classStr.includes("IS") || usnStr.includes("IS") || emailStr.includes("IS")) {
+        return "ISE";
+      }
+      return "OTHER";
+    }
 
-      tbody.innerHTML = list.map(s => {
-        const photoHtml = s.photoUrl 
-          ? `<img src="${s.photoUrl}" alt="${s.name}" class="avatar-circle avatar-sm" />` 
-          : `<div class="avatar-circle avatar-sm" style="display:inline-flex; align-items:center; justify-content:center;">${(s.name || 'S').charAt(0).toUpperCase()}</div>`;
+    function renderStudents(list) {
+      const cseTbody = document.getElementById("cseStudentsTableBody");
+      const iseTbody = document.getElementById("iseStudentsTableBody");
+      const otherTbody = document.getElementById("otherStudentsTableBody");
+      const otherCard = document.getElementById("otherStudentsCard");
 
-        return `
-          <tr>
-            <td><strong>${s.rollNumber || "-"}</strong></td>
-            <td>
-              <div class="user-badge-cell">
-                ${photoHtml}
-                <span>${s.name || "-"}</span>
-              </div>
-            </td>
-            <td>${s.email || "-"}</td>
-            <td><span class="role-badge" style="background:#e0e7ff; color:#3730a3;">${s.classId || "-"}</span></td>
-            <td style="text-align: right;">
-              <a href="student-dashboard.html?studentId=${s.id}" class="btn btn-secondary btn-sm" style="padding: 0.2rem 0.6rem; font-size: 0.8rem; margin-right: 0.25rem;">📊 Attendance Card</a>
-              <button onclick="deleteStudent('${s.id}')" class="btn btn-danger btn-sm" style="padding: 0.2rem 0.6rem; font-size: 0.8rem;">Delete</button>
-            </td>
-          </tr>
-        `;
-      }).join("");
+      const cseList = list.filter(s => getStudentDept(s) === "CSE");
+      const iseList = list.filter(s => getStudentDept(s) === "ISE");
+      const otherList = list.filter(s => getStudentDept(s) === "OTHER");
+
+      document.getElementById("cseStudentCount").textContent = cseList.length;
+      document.getElementById("iseStudentCount").textContent = iseList.length;
+
+      const renderRows = (arr, emptyMsg) => {
+        if (!arr.length) {
+          return `<tr><td colspan="4" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">${emptyMsg}</td></tr>`;
+        }
+        return arr.map(s => {
+          const photoHtml = s.photoUrl 
+            ? `<img src="${s.photoUrl}" alt="${s.name}" class="avatar-circle avatar-sm" />` 
+            : `<div class="avatar-circle avatar-sm" style="display:inline-flex; align-items:center; justify-content:center;">${(s.name || 'S').charAt(0).toUpperCase()}</div>`;
+
+          return `
+            <tr>
+              <td><strong>${s.rollNumber || "-"}</strong></td>
+              <td>
+                <div class="user-badge-cell">
+                  ${photoHtml}
+                  <span>${s.name || "-"}</span>
+                </div>
+              </td>
+              <td><span class="role-badge" style="background:#e0e7ff; color:#3730a3; font-size:0.75rem;">${s.classId || "-"}</span></td>
+              <td style="text-align: right; white-space: nowrap;">
+                <a href="student-dashboard.html?studentId=${s.id}" class="btn btn-secondary btn-sm" style="padding: 0.2rem 0.5rem; font-size: 0.75rem; margin-right: 0.2rem;">📊 Card</a>
+                <button onclick="deleteStudent('${s.id}')" class="btn btn-danger btn-sm" style="padding: 0.2rem 0.5rem; font-size: 0.75rem;">Delete</button>
+              </td>
+            </tr>
+          `;
+        }).join("");
+      };
+
+      cseTbody.innerHTML = renderRows(cseList, "No CSE students found.");
+      iseTbody.innerHTML = renderRows(iseList, "No ISE students found.");
+
+      if (otherList.length > 0) {
+        otherCard.style.display = "block";
+        otherTbody.innerHTML = renderRows(otherList, "No other students.");
+      } else {
+        otherCard.style.display = "none";
+      }
     }
 
     function filterStudents() {

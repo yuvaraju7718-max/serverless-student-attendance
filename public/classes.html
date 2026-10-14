@@ -71,25 +71,79 @@
       </form>
     </div>
 
-    <!-- Class List -->
-    <div class="card">
-      <h3 class="card-title">Active Classes</h3>
+    <!-- Side-by-Side CSE and ISE Classes Tables -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 1.25rem;">
       
-      <div class="table-responsive" style="margin-top: 1rem;">
+      <!-- LEFT SIDE: CSE Classes -->
+      <div class="card" style="border-top: 4px solid var(--primary);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+          <h3 class="card-title" style="margin-bottom: 0; display: flex; align-items: center; gap: 0.5rem;">
+            💻 CSE Classes <span id="cseClassCount" class="badge" style="background:#dbeafe; color:#1e40af;">0</span>
+          </h3>
+          <span style="font-size: 0.8rem; color: var(--text-muted);">Computer Science & Engg</span>
+        </div>
+
+        <div class="table-responsive">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Class</th>
+                <th>Semester</th>
+                <th style="text-align: right;">Action</th>
+              </tr>
+            </thead>
+            <tbody id="cseClassesTableBody">
+              <tr>
+                <td colspan="3" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">Loading CSE classes...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- RIGHT SIDE: ISE Classes -->
+      <div class="card" style="border-top: 4px solid #0284c7;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+          <h3 class="card-title" style="margin-bottom: 0; display: flex; align-items: center; gap: 0.5rem;">
+            🌐 ISE Classes <span id="iseClassCount" class="badge" style="background:#e0f2fe; color:#0369a1;">0</span>
+          </h3>
+          <span style="font-size: 0.8rem; color: var(--text-muted);">Information Science & Engg</span>
+        </div>
+
+        <div class="table-responsive">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Class</th>
+                <th>Semester</th>
+                <th style="text-align: right;">Action</th>
+              </tr>
+            </thead>
+            <tbody id="iseClassesTableBody">
+              <tr>
+                <td colspan="3" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">Loading ISE classes...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Fallback Card for Other Departments (if any) -->
+    <div class="card" id="otherClassesCard" style="display: none; margin-top: 1.25rem;">
+      <h3 class="card-title">Other Department Classes</h3>
+      <div class="table-responsive">
         <table class="table">
           <thead>
             <tr>
-              <th>Class ID / Name</th>
+              <th>Class</th>
               <th>Department</th>
               <th>Semester</th>
-              <th style="text-align: right;">Actions</th>
+              <th style="text-align: right;">Action</th>
             </tr>
           </thead>
-          <tbody id="classesTableBody">
-            <tr>
-              <td colspan="4" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">Loading classes...</td>
-            </tr>
-          </tbody>
+          <tbody id="otherClassesTableBody"></tbody>
         </table>
       </div>
     </div>
@@ -123,25 +177,61 @@
       try {
         const snap = await db.collection("classes").get();
         allClasses = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-        const tbody = document.getElementById("classesTableBody");
 
-        if (snap.empty) {
-          tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">No classes registered yet.</td></tr>`;
-          return;
-        }
+        const cseClasses = [];
+        const iseClasses = [];
+        const otherClasses = [];
 
-        tbody.innerHTML = allClasses.map(c => {
-          return `
+        allClasses.forEach(c => {
+          const dept = (c.department || "").toUpperCase();
+          const name = (c.name || c.id || "").toUpperCase();
+
+          if (dept.includes("CSE") || dept.includes("COMPUTER") || dept.includes("CS") || name.startsWith("CSE") || name.startsWith("CS")) {
+            cseClasses.push(c);
+          } else if (dept.includes("ISE") || dept.includes("INFORMATION") || dept.includes("IS") || name.startsWith("ISE") || name.startsWith("IS")) {
+            iseClasses.push(c);
+          } else {
+            otherClasses.push(c);
+          }
+        });
+
+        document.getElementById("cseClassCount").textContent = cseClasses.length;
+        document.getElementById("iseClassCount").textContent = iseClasses.length;
+
+        const renderClassRows = (arr, emptyMsg) => {
+          if (!arr.length) {
+            return `<tr><td colspan="3" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">${emptyMsg}</td></tr>`;
+          }
+          return arr.map(c => `
+            <tr>
+              <td><strong>${c.name || c.id}</strong></td>
+              <td>Semester ${c.semester || "-"}</td>
+              <td style="text-align: right; white-space: nowrap;">
+                <button onclick="deleteClass('${c.id}')" class="btn btn-danger btn-sm" style="padding: 0.2rem 0.6rem; font-size: 0.8rem;">Delete</button>
+              </td>
+            </tr>
+          `).join("");
+        };
+
+        document.getElementById("cseClassesTableBody").innerHTML = renderClassRows(cseClasses, "No CSE classes registered yet.");
+        document.getElementById("iseClassesTableBody").innerHTML = renderClassRows(iseClasses, "No ISE classes registered yet.");
+
+        const otherClassesCard = document.getElementById("otherClassesCard");
+        if (otherClasses.length > 0) {
+          otherClassesCard.style.display = "block";
+          document.getElementById("otherClassesTableBody").innerHTML = otherClasses.map(c => `
             <tr>
               <td><strong>${c.name || c.id}</strong></td>
               <td>${c.department || "-"}</td>
               <td>Semester ${c.semester || "-"}</td>
-              <td style="text-align: right;">
+              <td style="text-align: right; white-space: nowrap;">
                 <button onclick="deleteClass('${c.id}')" class="btn btn-danger btn-sm" style="padding: 0.2rem 0.6rem; font-size: 0.8rem;">Delete</button>
               </td>
             </tr>
-          `;
-        }).join("");
+          `).join("");
+        } else {
+          otherClassesCard.style.display = "none";
+        }
       } catch (err) {
         showAlert("Error loading classes: " + err.message, "danger");
       }

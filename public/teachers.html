@@ -105,26 +105,79 @@
       </form>
     </div>
 
-    <!-- Faculty List Table -->
-    <div class="card">
-      <h3 class="card-title">Registered Faculty & Assignments</h3>
+    <!-- Side-by-Side CSE and ISE Faculty Tables -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 1.25rem;">
       
-      <div class="table-responsive" style="margin-top: 1rem;">
+      <!-- LEFT SIDE: CSE Faculty -->
+      <div class="card" style="border-top: 4px solid var(--primary);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+          <h3 class="card-title" style="margin-bottom: 0; display: flex; align-items: center; gap: 0.5rem;">
+            💻 CSE Faculty <span id="cseTeacherCount" class="badge" style="background:#dbeafe; color:#1e40af;">0</span>
+          </h3>
+          <span style="font-size: 0.8rem; color: var(--text-muted);">Computer Science Dept</span>
+        </div>
+
+        <div class="table-responsive">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Teacher</th>
+                <th>Assigned Classes & Subjects</th>
+                <th style="text-align: right;">Action</th>
+              </tr>
+            </thead>
+            <tbody id="cseTeachersTableBody">
+              <tr>
+                <td colspan="3" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">Loading CSE faculty...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- RIGHT SIDE: ISE Faculty -->
+      <div class="card" style="border-top: 4px solid #0284c7;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+          <h3 class="card-title" style="margin-bottom: 0; display: flex; align-items: center; gap: 0.5rem;">
+            🌐 ISE Faculty <span id="iseTeacherCount" class="badge" style="background:#e0f2fe; color:#0369a1;">0</span>
+          </h3>
+          <span style="font-size: 0.8rem; color: var(--text-muted);">Information Science Dept</span>
+        </div>
+
+        <div class="table-responsive">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Teacher</th>
+                <th>Assigned Classes & Subjects</th>
+                <th style="text-align: right;">Action</th>
+              </tr>
+            </thead>
+            <tbody id="iseTeachersTableBody">
+              <tr>
+                <td colspan="3" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">Loading ISE faculty...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Fallback Card for Other Departments (if any) -->
+    <div class="card" id="otherTeachersCard" style="display: none; margin-top: 1.25rem;">
+      <h3 class="card-title">Other Faculty Members</h3>
+      <div class="table-responsive">
         <table class="table">
           <thead>
             <tr>
-              <th>Teacher Name</th>
-              <th>Email</th>
+              <th>Teacher</th>
               <th>Department</th>
               <th>Assigned Classes & Subjects</th>
-              <th style="text-align: right;">Actions</th>
+              <th style="text-align: right;">Action</th>
             </tr>
           </thead>
-          <tbody id="teachersTableBody">
-            <tr>
-              <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">Loading faculty records...</td>
-            </tr>
-          </tbody>
+          <tbody id="otherTeachersTableBody"></tbody>
         </table>
       </div>
     </div>
@@ -203,45 +256,106 @@
           assignmentsByTeacher[a.teacherId].push({ id: d.id, ...a });
         });
 
-        // Render Teachers Table
-        const tbody = document.getElementById("teachersTableBody");
-        if (teachersSnap.empty) {
-          tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">No teachers registered yet.</td></tr>`;
-          return;
+        // Categorize teachers into CSE and ISE
+        const cseTeachers = [];
+        const iseTeachers = [];
+        const otherTeachers = [];
+
+        teachersSnap.docs.forEach(doc => {
+          const t = { id: doc.id, ...doc.data() };
+          const dept = (t.department || "").toUpperCase();
+          const email = (t.email || "").toUpperCase();
+          const name = (t.name || "").toUpperCase();
+
+          if (dept.includes("CSE") || dept.includes("COMPUTER") || dept.includes("CS") || email.includes("CS")) {
+            cseTeachers.push(t);
+          } else if (dept.includes("ISE") || dept.includes("INFORMATION") || dept.includes("IS") || email.includes("IS")) {
+            iseTeachers.push(t);
+          } else {
+            otherTeachers.push(t);
+          }
+        });
+
+        document.getElementById("cseTeacherCount").textContent = cseTeachers.length;
+        document.getElementById("iseTeacherCount").textContent = iseTeachers.length;
+
+        const renderTeacherRows = (arr, emptyMsg) => {
+          if (!arr.length) {
+            return `<tr><td colspan="3" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">${emptyMsg}</td></tr>`;
+          }
+          return arr.map(t => {
+            const asgns = assignmentsByTeacher[t.id] || [];
+            const badges = asgns.map(a => `
+              <span class="badge" style="background:#e0e7ff; color:#3730a3; margin-right: 0.2rem; margin-bottom: 0.2rem; display: inline-flex; align-items: center; gap: 0.25rem; font-size: 0.75rem;">
+                ${a.classId}: ${a.subjectName || a.subjectId}
+                <button onclick="removeAssignment('${a.id}')" style="background:none; border:none; cursor:pointer; color:#ef4444; font-weight:bold; font-size: 0.75rem;">&times;</button>
+              </span>
+            `).join("") || '<span style="color:var(--text-muted); font-size:0.8rem;">None assigned</span>';
+
+            const photo = t.photoUrl || userPhotos[t.id] || (t.email ? userPhotos[t.email.toLowerCase()] : "");
+            const photoHtml = photo 
+              ? `<img src="${photo}" alt="${t.name}" class="avatar-circle avatar-sm" />` 
+              : `<div class="avatar-circle avatar-sm" style="display:inline-flex; align-items:center; justify-content:center;">${(t.name || 'T').charAt(0).toUpperCase()}</div>`;
+
+            return `
+              <tr>
+                <td>
+                  <div class="user-badge-cell">
+                    ${photoHtml}
+                    <div>
+                      <strong>${t.name}</strong>
+                      <div style="font-size: 0.75rem; color: var(--text-muted);">${t.email}</div>
+                    </div>
+                  </div>
+                </td>
+                <td>${badges}</td>
+                <td style="text-align: right; white-space: nowrap;">
+                  <button onclick="deleteTeacher('${t.id}')" class="btn btn-danger btn-sm" style="padding: 0.2rem 0.5rem; font-size: 0.75rem;">Delete</button>
+                </td>
+              </tr>
+            `;
+          }).join("");
+        };
+
+        document.getElementById("cseTeachersTableBody").innerHTML = renderTeacherRows(cseTeachers, "No CSE faculty registered yet.");
+        document.getElementById("iseTeachersTableBody").innerHTML = renderTeacherRows(iseTeachers, "No ISE faculty registered yet.");
+
+        const otherTeachersCard = document.getElementById("otherTeachersCard");
+        if (otherTeachers.length > 0) {
+          otherTeachersCard.style.display = "block";
+          document.getElementById("otherTeachersTableBody").innerHTML = otherTeachers.map(t => {
+            const asgns = assignmentsByTeacher[t.id] || [];
+            const badges = asgns.map(a => `
+              <span class="badge" style="background:#e0e7ff; color:#3730a3; margin-right: 0.2rem; margin-bottom: 0.2rem; display: inline-flex; align-items: center; gap: 0.25rem; font-size: 0.75rem;">
+                ${a.classId}: ${a.subjectName || a.subjectId}
+                <button onclick="removeAssignment('${a.id}')" style="background:none; border:none; cursor:pointer; color:#ef4444; font-weight:bold; font-size: 0.75rem;">&times;</button>
+              </span>
+            `).join("") || '<span style="color:var(--text-muted); font-size:0.8rem;">None assigned</span>';
+
+            const photo = t.photoUrl || userPhotos[t.id] || (t.email ? userPhotos[t.email.toLowerCase()] : "");
+            const photoHtml = photo 
+              ? `<img src="${photo}" alt="${t.name}" class="avatar-circle avatar-sm" />` 
+              : `<div class="avatar-circle avatar-sm" style="display:inline-flex; align-items:center; justify-content:center;">${(t.name || 'T').charAt(0).toUpperCase()}</div>`;
+
+            return `
+              <tr>
+                <td>
+                  <div class="user-badge-cell">
+                    ${photoHtml}
+                    <strong>${t.name}</strong>
+                  </div>
+                </td>
+                <td>${t.department || "-"}</td>
+                <td>${badges}</td>
+                <td style="text-align: right;">
+                  <button onclick="deleteTeacher('${t.id}')" class="btn btn-danger btn-sm" style="padding: 0.2rem 0.5rem; font-size: 0.75rem;">Delete</button>
+                </td>
+              </tr>
+            `;
+          }).join("");
+        } else {
+          otherTeachersCard.style.display = "none";
         }
-
-        tbody.innerHTML = teachersSnap.docs.map(doc => {
-          const t = doc.data();
-          const asgns = assignmentsByTeacher[doc.id] || [];
-          const badges = asgns.map(a => `
-            <span class="badge" style="background:#e0e7ff; color:#3730a3; margin-right: 0.25rem; margin-bottom: 0.25rem; display: inline-flex; align-items: center; gap: 0.25rem;">
-              ${a.classId}: ${a.subjectName || a.subjectId}
-              <button onclick="removeAssignment('${a.id}')" style="background:none; border:none; cursor:pointer; color:#ef4444; font-weight:bold; font-size: 0.75rem;">&times;</button>
-            </span>
-          `).join("") || '<span style="color:var(--text-muted); font-size:0.85rem;">None assigned</span>';
-
-          const photo = t.photoUrl || userPhotos[doc.id] || (t.email ? userPhotos[t.email.toLowerCase()] : "");
-          const photoHtml = photo 
-            ? `<img src="${photo}" alt="${t.name}" class="avatar-circle avatar-sm" />` 
-            : `<div class="avatar-circle avatar-sm" style="display:inline-flex; align-items:center; justify-content:center;">${(t.name || 'T').charAt(0).toUpperCase()}</div>`;
-
-          return `
-            <tr>
-              <td>
-                <div class="user-badge-cell">
-                  ${photoHtml}
-                  <strong>${t.name}</strong>
-                </div>
-              </td>
-              <td>${t.email}</td>
-              <td>${t.department || "-"}</td>
-              <td>${badges}</td>
-              <td style="text-align: right;">
-                <button onclick="deleteTeacher('${doc.id}')" class="btn btn-danger btn-sm" style="padding: 0.2rem 0.6rem; font-size: 0.8rem;">Delete</button>
-              </td>
-            </tr>
-          `;
-        }).join("");
 
       } catch (err) {
         showAlert("Error loading faculty: " + err.message, "danger");
