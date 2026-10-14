@@ -71,6 +71,21 @@
           </select>
         </div>
 
+        <div class="form-group" style="margin-bottom: 0;">
+          <label class="form-label" for="studentSemester">Semester</label>
+          <select id="studentSemester" class="form-select" required>
+            <option value="">-- Select Semester --</option>
+            <option value="1">Semester 1 (1st Year)</option>
+            <option value="2">Semester 2 (1st Year)</option>
+            <option value="3">Semester 3 (2nd Year)</option>
+            <option value="4">Semester 4 (2nd Year)</option>
+            <option value="5">Semester 5 (3rd Year)</option>
+            <option value="6">Semester 6 (3rd Year)</option>
+            <option value="7">Semester 7 (4th Year)</option>
+            <option value="8">Semester 8 (4th Year)</option>
+          </select>
+        </div>
+
         <div style="grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.5rem;">
           <button type="button" onclick="toggleAddForm()" class="btn btn-secondary btn-sm">Cancel</button>
           <button type="submit" id="saveStudentBtn" class="btn btn-primary btn-sm">Save Student</button>
@@ -105,12 +120,13 @@
                 <th>USN</th>
                 <th>Student Name</th>
                 <th>Class</th>
+                <th>Semester</th>
                 <th style="text-align: right;">Action</th>
               </tr>
             </thead>
             <tbody id="cseStudentsTableBody">
               <tr>
-                <td colspan="4" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">Loading CSE students...</td>
+                <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">Loading CSE students...</td>
               </tr>
             </tbody>
           </table>
@@ -133,12 +149,13 @@
                 <th>USN</th>
                 <th>Student Name</th>
                 <th>Class</th>
+                <th>Semester</th>
                 <th style="text-align: right;">Action</th>
               </tr>
             </thead>
             <tbody id="iseStudentsTableBody">
               <tr>
-                <td colspan="4" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">Loading ISE students...</td>
+                <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">Loading ISE students...</td>
               </tr>
             </tbody>
           </table>
@@ -157,6 +174,7 @@
               <th>USN</th>
               <th>Student Name</th>
               <th>Class</th>
+              <th>Semester</th>
               <th style="text-align: right;">Action</th>
             </tr>
           </thead>
@@ -207,6 +225,17 @@
           db.collection("users").get()
         ]);
 
+        // Auto-assign any student missing semester in Firestore to Semester 5
+        const unassigned = studentsSnap.docs.filter(d => !d.data().semester);
+        if (unassigned.length > 0) {
+          const batch = db.batch();
+          unassigned.forEach(d => {
+            batch.update(d.ref, { semester: 5 });
+            batch.set(db.collection("users").doc(d.id), { semester: 5 }, { merge: true });
+          });
+          batch.commit().catch(e => console.warn("Auto student sem batch err:", e));
+        }
+
         const userPhotos = {};
         usersSnap.forEach(d => {
           const u = d.data();
@@ -220,7 +249,7 @@
         allStudents = studentsSnap.docs.map(d => {
           const s = d.data();
           const photo = s.photoUrl || userPhotos[d.id] || (s.email ? userPhotos[s.email.toLowerCase()] : '') || (s.rollNumber ? userPhotos[s.rollNumber] : '');
-          return { id: d.id, ...s, photoUrl: photo };
+          return { id: d.id, ...s, semester: s.semester || 5, photoUrl: photo };
         });
         allStudents.sort((a, b) => (a.rollNumber || "").localeCompare(b.rollNumber || "", undefined, { numeric: true }));
 
@@ -259,12 +288,13 @@
 
       const renderRows = (arr, emptyMsg) => {
         if (!arr.length) {
-          return `<tr><td colspan="4" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">${emptyMsg}</td></tr>`;
+          return `<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">${emptyMsg}</td></tr>`;
         }
         return arr.map(s => {
           const photoHtml = s.photoUrl 
             ? `<img src="${s.photoUrl}" alt="${s.name}" class="avatar-circle avatar-sm" />` 
             : `<div class="avatar-circle avatar-sm" style="display:inline-flex; align-items:center; justify-content:center;">${(s.name || 'S').charAt(0).toUpperCase()}</div>`;
+          const sem = s.semester || 5;
 
           return `
             <tr>
@@ -276,6 +306,7 @@
                 </div>
               </td>
               <td><span class="role-badge" style="background:#e0e7ff; color:#3730a3; font-size:0.75rem;">${s.classId || "-"}</span></td>
+              <td><span class="badge" style="background:#eff6ff; color:#1d4ed8; font-weight:600; font-size:0.75rem;">Semester ${sem}</span></td>
               <td style="text-align: right; white-space: nowrap;">
                 <a href="student-dashboard.html?studentId=${s.id}" class="btn btn-secondary btn-sm" style="padding: 0.2rem 0.5rem; font-size: 0.75rem; margin-right: 0.2rem;">📊 Card</a>
                 <button onclick="deleteStudent('${s.id}')" class="btn btn-danger btn-sm" style="padding: 0.2rem 0.5rem; font-size: 0.75rem;">Delete</button>
@@ -301,7 +332,8 @@
       const filtered = allStudents.filter(s => 
         (s.name || "").toLowerCase().includes(q) || 
         (s.rollNumber || "").toLowerCase().includes(q) ||
-        (s.classId || "").toLowerCase().includes(q)
+        (s.classId || "").toLowerCase().includes(q) ||
+        `semester ${s.semester}`.includes(q)
       );
       renderStudents(filtered);
     }
@@ -316,6 +348,7 @@
       const name = document.getElementById("studentName").value.trim().toUpperCase();
       const email = document.getElementById("studentEmail").value.trim().toLowerCase();
       const classId = document.getElementById("studentClass").value;
+      const semester = Number(document.getElementById("studentSemester").value) || 5;
 
       // Enforce Institutional Email Domain (@clg.ac.in)
       if (!email.endsWith("@clg.ac.in")) {
@@ -360,17 +393,18 @@
           return;
         }
 
-        // Save as Primary Key in Firestore
+        // Save as Primary Key in Firestore with semester
         await db.collection("students").doc(studentId).set({
           id: studentId,
           rollNumber,
           name,
           email,
           classId,
+          semester,
           createdAt: new Date().toISOString()
-        });
+        }, { merge: true });
 
-        // Also create entry in users collection with student role
+        // Also create/update entry in users collection with student role and semester
         await db.collection("users").doc(studentId).set({
           uid: studentId,
           name,
@@ -378,10 +412,11 @@
           role: "student",
           rollNumber,
           classId,
+          semester,
           createdAt: new Date().toISOString()
         }, { merge: true });
 
-        showAlert(`Student ${name} (USN: ${rollNumber}) enrolled successfully!`, "success");
+        showAlert(`Student ${name} (USN: ${rollNumber}, Semester ${semester}) enrolled successfully!`, "success");
         document.getElementById("studentForm").reset();
         toggleAddForm();
         loadData();

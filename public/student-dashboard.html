@@ -30,7 +30,7 @@
 
   <main class="container">
     <!-- Student Profile Header Banner -->
-    <div class="card" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+    <div class="card" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.25rem;">
       <div style="display: flex; align-items: center; gap: 1rem;">
         <div id="studentAvatarContainer" style="width: 60px; height: 60px;">
           <img id="studentAvatarImg" src="" alt="Student" class="avatar-circle avatar-md" style="width: 60px; height: 60px; display: none;" />
@@ -39,14 +39,97 @@
         <div>
           <h1 style="font-size: 1.6rem; text-transform: uppercase;" id="studentNameDisplay">Loading Student Profile...</h1>
           <p style="color: var(--text-muted); font-size: 0.95rem; margin-top: 0.25rem;">
-            USN / Roll Number: <strong id="studentRollDisplay">-</strong> &bull; Class: <strong id="studentClassDisplay">-</strong>
+            USN / Roll Number: <strong id="studentRollDisplay">-</strong> &bull; Class: <strong id="studentClassDisplay">-</strong> &bull; Semester: <strong id="studentSemesterDisplay" style="color:var(--primary);">Semester 5</strong>
           </p>
         </div>
       </div>
-      <div style="background: var(--primary-light); padding: 0.75rem 1.25rem; border-radius: 8px; border: 1px solid #bfdbfe; text-align: center;">
-        <span style="font-size: 0.8rem; text-transform: uppercase; font-weight: 700; color: var(--primary);">Overall Attendance</span>
-        <div style="font-size: 2rem; font-weight: 800; color: var(--primary);" id="overallPercentage">0%</div>
+      <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+        <span class="badge" id="studentSemesterBadge" style="background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; font-size: 0.85rem; padding: 0.45rem 0.85rem; font-weight: 700;">📚 Semester 5</span>
+        <span class="badge" style="background:#e0f2fe; color:#0369a1; font-size: 0.85rem; padding: 0.45rem 0.85rem; font-weight: 600;">🎓 Student Academic Portal</span>
       </div>
+    </div>
+
+    <!-- 2-Column Hero: Left Side (Overall Attendance Gauge & Advisor) | Right Side (Subject Shortage Watchlist) -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 1.25rem; margin-bottom: 1.5rem;">
+      
+      <!-- LEFT SIDE: Overall Attendance Radial Progress & Smart Advisor -->
+      <div class="card" style="margin-bottom: 0; display: flex; flex-direction: column; justify-content: space-between; border-top: 4px solid var(--primary);">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem;">
+          <div>
+            <h3 class="card-title" style="margin-bottom: 0.2rem; display: flex; align-items: center; gap: 0.5rem;">
+              🎯 Overall Attendance Status
+            </h3>
+            <p class="card-subtitle" style="margin-bottom: 0;">Cumulative percentage across all enrolled subjects</p>
+          </div>
+          <span id="overallStatusBadge" class="badge badge-present" style="font-size: 0.8rem;">Calculating...</span>
+        </div>
+
+        <div style="display: flex; align-items: center; justify-content: space-around; flex-wrap: wrap; gap: 1.25rem; padding: 0.5rem 0;">
+          <!-- SVG Radial Gauge Ring -->
+          <div style="position: relative; width: 140px; height: 140px; display: flex; align-items: center; justify-content: center;">
+            <svg viewBox="0 0 100 100" width="140" height="140" style="transform: rotate(-90deg);">
+              <!-- Background Ring -->
+              <circle cx="50" cy="50" r="42" stroke="#e2e8f0" stroke-width="8" fill="none" />
+              <!-- Animated Progress Ring -->
+              <circle id="radialProgressBar" cx="50" cy="50" r="42" stroke="var(--primary)" stroke-width="8" 
+                      stroke-dasharray="264" stroke-dashoffset="264" stroke-linecap="round" fill="none" 
+                      style="transition: stroke-dashoffset 1s cubic-bezier(0.4, 0, 0.2, 1), stroke 0.3s ease;" />
+            </svg>
+            <div style="position: absolute; text-align: center;">
+              <span id="overallPercentage" style="font-size: 1.85rem; font-weight: 800; color: var(--text); line-height: 1;">0%</span>
+              <div style="font-size: 0.7rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; margin-top: 0.25rem;">Total Rate</div>
+            </div>
+          </div>
+
+          <!-- Stat Metric Pills -->
+          <div style="display: flex; flex-direction: column; gap: 0.5rem; min-width: 170px;">
+            <div style="background: #f8fafc; border: 1px solid var(--border); border-radius: 6px; padding: 0.4rem 0.75rem; display: flex; justify-content: space-between; align-items: center;">
+              <span style="font-size: 0.8rem; color: var(--text-muted);">Total Hours:</span>
+              <strong id="statTotalHours" style="font-size: 0.95rem;">0 hrs</strong>
+            </div>
+            <div style="background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 6px; padding: 0.4rem 0.75rem; display: flex; justify-content: space-between; align-items: center;">
+              <span style="font-size: 0.8rem; color: #065f46;">Attended:</span>
+              <strong id="statPresentHours" style="color: var(--success); font-size: 0.95rem;">0 hrs</strong>
+            </div>
+            <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 6px; padding: 0.4rem 0.75rem; display: flex; justify-content: space-between; align-items: center;">
+              <span style="font-size: 0.8rem; color: #991b1b;">Missed:</span>
+              <strong id="statAbsentHours" style="color: var(--danger); font-size: 0.95rem;">0 hrs</strong>
+            </div>
+          </div>
+        </div>
+
+        <!-- Smart Academic Advice Box -->
+        <div id="smartAdvisorBox" style="margin-top: 0.85rem; padding: 0.65rem 0.9rem; border-radius: 6px; background: #eff6ff; border: 1px solid #bfdbfe; font-size: 0.825rem; color: #1e40af; display: flex; align-items: center; gap: 0.5rem;">
+          <span style="font-size: 1.2rem;">💡</span>
+          <span id="smartAdvisorText">Attendance calculation in progress...</span>
+        </div>
+      </div>
+
+      <!-- RIGHT SIDE: Subjects Having Shortage of Attendance (< 75%) -->
+      <div class="card" id="shortageAlertCard" style="margin-bottom: 0; display: flex; flex-direction: column; justify-content: space-between; border-top: 4px solid var(--danger);">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem;">
+          <div>
+            <h3 class="card-title" style="margin-bottom: 0.2rem; display: flex; align-items: center; gap: 0.5rem;">
+              ⚠️ Attendance Shortage Watchlist
+            </h3>
+            <p class="card-subtitle" style="margin-bottom: 0;">Subjects requiring immediate attendance (&lt; 75% threshold)</p>
+          </div>
+          <span id="shortageCountBadge" class="badge badge-absent" style="font-size: 0.8rem;">0 Shortages</span>
+        </div>
+
+        <!-- Dynamic list of shortage subjects -->
+        <div id="shortageSubjectList" style="flex: 1; display: flex; flex-direction: column; gap: 0.75rem; overflow-y: auto; max-height: 220px; padding-right: 0.25rem;">
+          <div style="text-align: center; color: var(--text-muted); padding: 1.5rem; font-size: 0.85rem;">
+            Analyzing course attendance records...
+          </div>
+        </div>
+
+        <div style="margin-top: 0.75rem; font-size: 0.75rem; color: var(--text-muted); display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border); padding-top: 0.5rem;">
+          <span>Minimum Required: <strong>75%</strong></span>
+          <span>Instituted by Examination Ordinance</span>
+        </div>
+      </div>
+
     </div>
 
     <!-- Attendance Percentage Breakdown per Subject -->
@@ -154,9 +237,13 @@
           const finalStudentId = paramStudentId || studentDocData?.id || (finalRoll ? `stu_${finalRoll.toLowerCase().replace(/[^a-z0-9]/g, '_')}` : "");
           const photoUrl = studentDocData?.photoUrl || userData.photoUrl || "";
 
+          const finalSem = studentDocData?.semester || userData.semester || 5;
+
           document.getElementById("studentNameDisplay").textContent = finalName;
           document.getElementById("studentRollDisplay").textContent = finalRoll || "N/A";
           document.getElementById("studentClassDisplay").textContent = finalClass || "N/A";
+          document.getElementById("studentSemesterDisplay").textContent = `Semester ${finalSem}`;
+          document.getElementById("studentSemesterBadge").textContent = `📚 Semester ${finalSem}`;
 
           // Render student avatar
           const stuImg = document.getElementById("studentAvatarImg");
@@ -224,10 +311,21 @@
           const logsBody = document.getElementById("attendanceLogsBody");
           const subjectBody = document.getElementById("subjectAttendanceBody");
 
+          const radialBar = document.getElementById("radialProgressBar");
+          const circumference = 264; // 2 * PI * 42
+
           if (recordsMap.size === 0) {
-            logsBody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">No attendance records found yet for Roll No: ${finalRoll || 'N/A'}. When a teacher marks attendance for your class, it will appear here.</td></tr>`;
+            logsBody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">No attendance records found yet for Roll No: ${finalRoll || 'N/A'}. When a teacher marks attendance for your class, it will appear here.</td></tr>`;
             subjectBody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">No subject data available.</td></tr>`;
-            document.getElementById("overallPercentage").textContent = "N/A";
+            document.getElementById("overallPercentage").textContent = "0%";
+            document.getElementById("overallStatusBadge").textContent = "No Records";
+            document.getElementById("overallStatusBadge").className = "badge";
+            document.getElementById("smartAdvisorText").textContent = "No attendance sessions recorded yet.";
+            document.getElementById("shortageSubjectList").innerHTML = `
+              <div style="text-align: center; color: var(--text-muted); padding: 1.5rem; font-size: 0.85rem;">
+                No attendance sessions recorded yet.
+              </div>
+            `;
             return;
           }
 
@@ -262,7 +360,122 @@
             return (b.rawTime || b.time || "").localeCompare(a.rawTime || a.time || "");
           });
 
-          // Render Subject Table
+          // Compute Overall Attendance Metrics
+          const overallPct = totalHoursOverall > 0 ? Math.round((totalPresentHoursOverall / totalHoursOverall) * 100) : 0;
+          const isOverallEligible = overallPct >= 75;
+
+          // Animate and style Radial Gauge Ring
+          const offset = Math.max(0, circumference - (overallPct / 100) * circumference);
+          radialBar.style.strokeDashoffset = offset;
+
+          let gaugeColor = "var(--success)"; // Emerald Green
+          if (overallPct < 65) {
+            gaugeColor = "var(--danger)"; // Red
+          } else if (overallPct < 75) {
+            gaugeColor = "#f59e0b"; // Amber Warning
+          }
+          radialBar.style.stroke = gaugeColor;
+
+          const overallPctEl = document.getElementById("overallPercentage");
+          overallPctEl.textContent = `${overallPct}%`;
+          overallPctEl.style.color = gaugeColor;
+
+          document.getElementById("statTotalHours").textContent = `${totalHoursOverall} hrs`;
+          document.getElementById("statPresentHours").textContent = `${totalPresentHoursOverall} hrs`;
+          document.getElementById("statAbsentHours").textContent = `${totalHoursOverall - totalPresentHoursOverall} hrs`;
+
+          const statusBadge = document.getElementById("overallStatusBadge");
+          if (isOverallEligible) {
+            statusBadge.className = "badge badge-present";
+            statusBadge.textContent = "✅ Eligible (>=75%)";
+          } else {
+            statusBadge.className = "badge badge-absent";
+            statusBadge.textContent = "⚠️ Shortage (<75%)";
+          }
+
+          // Smart Advisor Calculation
+          const advisorBox = document.getElementById("smartAdvisorBox");
+          const advisorText = document.getElementById("smartAdvisorText");
+
+          if (isOverallEligible) {
+            const buffer = Math.floor((totalPresentHoursOverall - (0.75 * totalHoursOverall)) / 0.75);
+            advisorBox.style.background = "#ecfdf5";
+            advisorBox.style.borderColor = "#a7f3d0";
+            advisorBox.style.color = "#065f46";
+            if (buffer > 0) {
+              advisorText.innerHTML = `Safe Zone! You can safely miss up to <strong>${buffer} class hour${buffer > 1 ? 's' : ''}</strong> and still maintain the required 75% attendance.`;
+            } else {
+              advisorText.innerHTML = `Borderline Safe! Your attendance is at <strong>${overallPct}%</strong>. Attend your next upcoming classes to build a safe buffer.`;
+            }
+          } else {
+            const needed = Math.ceil(((0.75 * totalHoursOverall) - totalPresentHoursOverall) / 0.25);
+            advisorBox.style.background = "#fef2f2";
+            advisorBox.style.borderColor = "#fecaca";
+            advisorBox.style.color = "#991b1b";
+            advisorText.innerHTML = `Shortage Alert! You must attend the next <strong>${needed} class hour${needed > 1 ? 's' : ''}</strong> without missing any to restore 75% eligibility.`;
+          }
+
+          // Identify and populate Subjects with Attendance Shortage (< 75%)
+          const shortageList = [];
+          Object.keys(statsBySubject).forEach(subj => {
+            const item = statsBySubject[subj];
+            const pct = item.totalHours > 0 ? Math.round((item.presentHours / item.totalHours) * 100) : 0;
+            if (pct < 75) {
+              const neededInSub = Math.ceil(((0.75 * item.totalHours) - item.presentHours) / 0.25);
+              shortageList.push({
+                subject: subj,
+                pct: pct,
+                totalHours: item.totalHours,
+                presentHours: item.presentHours,
+                absentHours: item.absentHours,
+                needed: Math.max(1, neededInSub)
+              });
+            }
+          });
+
+          // Sort shortages: lowest percentage first (most urgent)
+          shortageList.sort((a, b) => a.pct - b.pct);
+
+          const shortageContainer = document.getElementById("shortageSubjectList");
+          const shortageBadge = document.getElementById("shortageCountBadge");
+          const shortageCard = document.getElementById("shortageAlertCard");
+
+          if (shortageList.length === 0) {
+            shortageCard.style.borderTopColor = "var(--success)";
+            shortageBadge.className = "badge badge-present";
+            shortageBadge.textContent = "0 Shortages";
+            shortageContainer.innerHTML = `
+              <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 1.25rem; text-align: center;">
+                <div style="font-size: 2rem; margin-bottom: 0.25rem;">🎉</div>
+                <strong style="color: #166534; font-size: 1rem; display: block;">All Clear! No Attendance Shortage</strong>
+                <p style="font-size: 0.825rem; color: #15803d; margin: 0.4rem 0 0 0;">
+                  You are maintaining eligible attendance (>= 75%) across all enrolled subjects. Keep up the consistency!
+                </p>
+              </div>
+            `;
+          } else {
+            shortageCard.style.borderTopColor = "var(--danger)";
+            shortageBadge.className = "badge badge-absent";
+            shortageBadge.textContent = `${shortageList.length} Subject${shortageList.length > 1 ? 's' : ''}`;
+
+            shortageContainer.innerHTML = shortageList.map(s => `
+              <div style="background: #fff5f5; border: 1px solid #fed7d7; border-left: 4px solid var(--danger); border-radius: 6px; padding: 0.65rem 0.85rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+                  <strong style="font-size: 0.95rem; color: var(--text);">${s.subject}</strong>
+                  <span class="badge badge-absent" style="font-size: 0.8rem; font-weight: 700;">${s.pct}%</span>
+                </div>
+                <div class="progress-bar-container" style="height: 6px; margin-bottom: 0.4rem; background: #fed7d7;">
+                  <div class="progress-bar" style="width: ${s.pct}%; background: var(--danger);"></div>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.775rem; color: var(--text-muted); flex-wrap: wrap; gap: 0.25rem;">
+                  <span>Attended: <strong>${s.presentHours}/${s.totalHours} hrs</strong> (${s.absentHours} missed)</span>
+                  <span style="color: #c53030; font-weight: 700;">Need +${s.needed} hr${s.needed > 1 ? 's' : ''} to reach 75%</span>
+                </div>
+              </div>
+            `).join("");
+          }
+
+          // Render Subject Breakdown Table
           subjectBody.innerHTML = Object.keys(statsBySubject).map(subj => {
             const item = statsBySubject[subj];
             const pct = item.totalHours > 0 ? Math.round((item.presentHours / item.totalHours) * 100) : 0;
@@ -288,11 +501,6 @@
               </tr>
             `;
           }).join("");
-
-          // Render Overall Percentage
-          const overallPct = totalHoursOverall > 0 ? Math.round((totalPresentHoursOverall / totalHoursOverall) * 100) : 0;
-          document.getElementById("overallPercentage").textContent = `${overallPct}%`;
-          document.getElementById("overallPercentage").style.color = overallPct >= 75 ? 'var(--success)' : 'var(--danger)';
 
           // Render Logs Table
           logsBody.innerHTML = records.slice(0, 30).map(r => {

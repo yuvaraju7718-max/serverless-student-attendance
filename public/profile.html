@@ -80,6 +80,11 @@
           <div id="infoStudentClass" style="font-size: 1.05rem; font-weight: 600; color: var(--text);">-</div>
         </div>
 
+        <div id="studentSemesterBlock" style="display: none;">
+          <label style="font-size: 0.8rem; text-transform: uppercase; color: var(--text-muted); font-weight: bold;">Academic Semester</label>
+          <div id="infoStudentSemester" style="font-size: 1.05rem; font-weight: 700; color: var(--primary);">-</div>
+        </div>
+
         <!-- Teacher Specific Department -->
         <div id="teacherDeptBlock" style="display: none;">
           <label style="font-size: 0.8rem; text-transform: uppercase; color: var(--text-muted); font-weight: bold;">Academic Department</label>
@@ -200,12 +205,16 @@
 
           const usn = studentDocData?.rollNumber || data.rollNumber || "Not Assigned";
           const classSection = studentDocData?.classId || data.classId || "Not Assigned";
+          const sem = studentDocData?.semester || data.semester || 5;
 
           document.getElementById("studentUsnBlock").style.display = "block";
           document.getElementById("infoStudentUsn").textContent = usn;
 
           document.getElementById("studentClassBlock").style.display = "block";
           document.getElementById("infoStudentClass").textContent = classSection;
+
+          document.getElementById("studentSemesterBlock").style.display = "block";
+          document.getElementById("infoStudentSemester").textContent = `Semester ${sem} (3rd Year)`;
         }
 
         // 2. TEACHER PROFILE UPGRADE

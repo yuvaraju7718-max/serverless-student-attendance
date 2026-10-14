@@ -9,6 +9,39 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+  <style>
+    .sem-filter-btn {
+      padding: 0.35rem 0.8rem;
+      border-radius: 9999px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--secondary);
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease-in-out;
+    }
+    .sem-filter-btn:hover {
+      border-color: var(--primary);
+      color: var(--primary);
+      background: var(--primary-light);
+    }
+    .sem-filter-btn.active {
+      background: var(--primary);
+      color: #ffffff;
+      border-color: var(--primary);
+      box-shadow: 0 1px 3px rgba(37, 99, 235, 0.3);
+    }
+    .semester-heading-row td {
+      background: #f1f5f9;
+      border-top: 2px solid #cbd5e1;
+      border-bottom: 1px solid #e2e8f0;
+      padding: 0.5rem 0.85rem;
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: #1e293b;
+    }
+  </style>
 </head>
 <body>
 
@@ -36,7 +69,7 @@
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
       <div>
         <h1 style="font-size: 1.75rem;">Subject Catalog</h1>
-        <p style="color: var(--text-muted); font-size: 0.95rem;">Manage course subjects, curriculum codes, and academic departments.</p>
+        <p style="color: var(--text-muted); font-size: 0.95rem;">Manage course subjects, curriculum codes, and academic departments by semester.</p>
       </div>
       <div>
         <button onclick="toggleSubjectForm()" class="btn btn-primary btn-sm">+ Add New Subject</button>
@@ -44,6 +77,25 @@
     </div>
 
     <div id="statusAlert" class="alert"></div>
+
+    <!-- Semester Filter Bar -->
+    <div class="card" style="padding: 0.85rem 1.25rem; margin-bottom: 1.25rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.75rem;">
+      <div style="display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;">
+        <span style="font-weight: 600; font-size: 0.88rem; color: var(--secondary);">Filter by Semester:</span>
+        <div id="semFilterButtons" style="display: flex; flex-wrap: wrap; gap: 0.4rem;">
+          <button type="button" class="sem-filter-btn active" data-sem="all" onclick="setSemesterFilter('all')">All Semesters</button>
+          <button type="button" class="sem-filter-btn" data-sem="1" onclick="setSemesterFilter(1)">Sem 1</button>
+          <button type="button" class="sem-filter-btn" data-sem="2" onclick="setSemesterFilter(2)">Sem 2</button>
+          <button type="button" class="sem-filter-btn" data-sem="3" onclick="setSemesterFilter(3)">Sem 3</button>
+          <button type="button" class="sem-filter-btn" data-sem="4" onclick="setSemesterFilter(4)">Sem 4</button>
+          <button type="button" class="sem-filter-btn" data-sem="5" onclick="setSemesterFilter(5)">Sem 5</button>
+          <button type="button" class="sem-filter-btn" data-sem="6" onclick="setSemesterFilter(6)">Sem 6</button>
+          <button type="button" class="sem-filter-btn" data-sem="7" onclick="setSemesterFilter(7)">Sem 7</button>
+          <button type="button" class="sem-filter-btn" data-sem="8" onclick="setSemesterFilter(8)">Sem 8</button>
+        </div>
+      </div>
+      <div style="font-size: 0.85rem; color: var(--text-muted); font-weight: 500;" id="filterStatusText">Showing all semesters</div>
+    </div>
 
     <!-- Add Subject Form -->
     <div class="card" id="addSubjectCard" style="display: none;">
@@ -61,7 +113,26 @@
 
         <div class="form-group" style="margin-bottom: 0;">
           <label class="form-label" for="subjectDept">Department</label>
-          <input type="text" id="subjectDept" class="form-control" placeholder="e.g. Computer Science" required />
+          <input type="text" id="subjectDept" list="subjectDeptList" class="form-control" placeholder="e.g. Computer Science and Engineering" required />
+          <datalist id="subjectDeptList">
+            <option value="Computer Science and Engineering (CSE)">
+            <option value="Information Science and Engineering (ISE)">
+          </datalist>
+        </div>
+
+        <div class="form-group" style="margin-bottom: 0;">
+          <label class="form-label" for="subjectSemester">Semester</label>
+          <select id="subjectSemester" class="form-control" required>
+            <option value="">-- Select Semester --</option>
+            <option value="1">Semester 1 (1st Year)</option>
+            <option value="2">Semester 2 (1st Year)</option>
+            <option value="3">Semester 3 (2nd Year)</option>
+            <option value="4">Semester 4 (2nd Year)</option>
+            <option value="5">Semester 5 (3rd Year)</option>
+            <option value="6">Semester 6 (3rd Year)</option>
+            <option value="7">Semester 7 (4th Year)</option>
+            <option value="8">Semester 8 (4th Year)</option>
+          </select>
         </div>
 
         <div style="grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.5rem;">
@@ -89,12 +160,13 @@
               <tr>
                 <th>Code</th>
                 <th>Subject Title</th>
+                <th>Semester</th>
                 <th style="text-align: right;">Action</th>
               </tr>
             </thead>
             <tbody id="cseSubjectsTableBody">
               <tr>
-                <td colspan="3" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">Loading CSE subjects...</td>
+                <td colspan="4" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">Loading CSE subjects...</td>
               </tr>
             </tbody>
           </table>
@@ -116,12 +188,13 @@
               <tr>
                 <th>Code</th>
                 <th>Subject Title</th>
+                <th>Semester</th>
                 <th style="text-align: right;">Action</th>
               </tr>
             </thead>
             <tbody id="iseSubjectsTableBody">
               <tr>
-                <td colspan="3" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">Loading ISE subjects...</td>
+                <td colspan="4" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">Loading ISE subjects...</td>
               </tr>
             </tbody>
           </table>
@@ -140,6 +213,7 @@
               <th>Code</th>
               <th>Subject Title</th>
               <th>Department</th>
+              <th>Semester</th>
               <th style="text-align: right;">Action</th>
             </tr>
           </thead>
@@ -171,6 +245,130 @@
     }
 
     let allSubjects = [];
+    let cseSubjectsList = [];
+    let iseSubjectsList = [];
+    let otherSubjectsList = [];
+    let currentSemFilter = 'all';
+
+    function setSemesterFilter(sem) {
+      currentSemFilter = sem;
+      document.querySelectorAll("#semFilterButtons .sem-filter-btn").forEach(btn => {
+        btn.classList.toggle("active", String(btn.getAttribute("data-sem")) === String(sem));
+      });
+      document.getElementById("filterStatusText").textContent = 
+        sem === 'all' ? 'Showing all semesters' : `Filtered to Semester ${sem}`;
+      renderAllSubjectTables();
+    }
+
+    function getSubjectSemester(s) {
+      if (s.semester && Number(s.semester) >= 1 && Number(s.semester) <= 8) {
+        return Number(s.semester);
+      }
+      return 5;
+    }
+
+    function renderGroupedSubjectRows(arr, deptLabel) {
+      let filtered = arr;
+      if (currentSemFilter !== 'all') {
+        const semNum = Number(currentSemFilter);
+        filtered = arr.filter(s => getSubjectSemester(s) === semNum);
+        if (!filtered.length) {
+          return `<tr><td colspan="4" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">No ${deptLabel} subjects found for Semester ${semNum}.</td></tr>`;
+        }
+      }
+
+      if (!filtered.length) {
+        return `<tr><td colspan="4" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">No ${deptLabel} subjects registered yet.</td></tr>`;
+      }
+
+      // Group by semester
+      const grouped = {};
+      filtered.forEach(s => {
+        const sem = getSubjectSemester(s);
+        const semNum = sem !== null ? sem : 99;
+        const key = sem !== null ? `Semester ${sem}` : "Other / General";
+        if (!grouped[key]) grouped[key] = { semNum, key, list: [] };
+        grouped[key].list.push(s);
+      });
+
+      const sortedKeys = Object.keys(grouped).sort((a, b) => grouped[a].semNum - grouped[b].semNum);
+
+      let html = "";
+      sortedKeys.forEach(k => {
+        const g = grouped[k];
+        html += `
+          <tr class="semester-heading-row">
+            <td colspan="4">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="display: inline-flex; align-items: center; gap: 0.4rem;">
+                  📖 ${k}
+                </span>
+                <span class="badge" style="background: rgba(37, 99, 235, 0.12); color: var(--primary); font-size: 0.75rem; padding: 0.15rem 0.5rem; border-radius: 9999px;">
+                  ${g.list.length} ${g.list.length === 1 ? 'subject' : 'subjects'}
+                </span>
+              </div>
+            </td>
+          </tr>
+        `;
+
+        g.list.forEach(s => {
+          const sem = s.semester || getSubjectSemester(s);
+          html += `
+            <tr>
+              <td><strong>${s.code || s.id}</strong></td>
+              <td>
+                <div>${s.name || "-"}</div>
+                ${s.department ? `<div style="font-size: 0.75rem; color: var(--text-muted);">${s.department}</div>` : ''}
+              </td>
+              <td>
+                <span class="badge" style="background: #e2e8f0; color: #334155; font-size: 0.8rem;">
+                  Semester ${sem || "-"}
+                </span>
+              </td>
+              <td style="text-align: right; white-space: nowrap;">
+                <button onclick="deleteSubject('${s.id}')" class="btn btn-danger btn-sm" style="padding: 0.2rem 0.6rem; font-size: 0.8rem;">Delete</button>
+              </td>
+            </tr>
+          `;
+        });
+      });
+
+      return html;
+    }
+
+    function renderAllSubjectTables() {
+      document.getElementById("cseSubjectCount").textContent = cseSubjectsList.length;
+      document.getElementById("iseSubjectCount").textContent = iseSubjectsList.length;
+
+      document.getElementById("cseSubjectsTableBody").innerHTML = renderGroupedSubjectRows(cseSubjectsList, "CSE");
+      document.getElementById("iseSubjectsTableBody").innerHTML = renderGroupedSubjectRows(iseSubjectsList, "ISE");
+
+      const otherSubjectsCard = document.getElementById("otherSubjectsCard");
+      let otherFiltered = otherSubjectsList;
+      if (currentSemFilter !== 'all') {
+        const semNum = Number(currentSemFilter);
+        otherFiltered = otherSubjectsList.filter(s => getSubjectSemester(s) === semNum);
+      }
+      if (otherFiltered.length > 0) {
+        otherSubjectsCard.style.display = "block";
+        document.getElementById("otherSubjectsTableBody").innerHTML = otherFiltered.map(s => {
+          const sem = s.semester || getSubjectSemester(s);
+          return `
+            <tr>
+              <td><strong>${s.code || s.id}</strong></td>
+              <td>${s.name || "-"}</td>
+              <td>${s.department || "-"}</td>
+              <td>Semester ${sem || "-"}</td>
+              <td style="text-align: right; white-space: nowrap;">
+                <button onclick="deleteSubject('${s.id}')" class="btn btn-danger btn-sm" style="padding: 0.2rem 0.6rem; font-size: 0.8rem;">Delete</button>
+              </td>
+            </tr>
+          `;
+        }).join("");
+      } else {
+        otherSubjectsCard.style.display = "none";
+      }
+    }
 
     async function loadSubjects() {
       if (!db) return;
@@ -178,9 +376,20 @@
         const snap = await db.collection("subjects").get();
         allSubjects = snap.docs.map(d => ({ id: d.id, ...d.data() }));
 
-        const cseSubjects = [];
-        const iseSubjects = [];
-        const otherSubjects = [];
+        // Automatically assign any subject missing a semester to Semester 5 in Firestore
+        const unassigned = allSubjects.filter(s => !s.semester || Number(s.semester) === 0);
+        if (unassigned.length > 0) {
+          const batch = db.batch();
+          unassigned.forEach(s => {
+            s.semester = 5;
+            batch.update(db.collection("subjects").doc(s.id), { semester: 5 });
+          });
+          batch.commit().catch(e => console.warn("Auto-sem batch err:", e));
+        }
+
+        cseSubjectsList = [];
+        iseSubjectsList = [];
+        otherSubjectsList = [];
 
         allSubjects.forEach(s => {
           const dept = (s.department || "").toUpperCase();
@@ -188,52 +397,15 @@
           const name = (s.name || "").toUpperCase();
 
           if (dept.includes("CSE") || dept.includes("COMPUTER") || dept.includes("CS") || code.startsWith("CS")) {
-            cseSubjects.push(s);
+            cseSubjectsList.push(s);
           } else if (dept.includes("ISE") || dept.includes("INFORMATION") || dept.includes("IS") || code.startsWith("IS")) {
-            iseSubjects.push(s);
+            iseSubjectsList.push(s);
           } else {
-            otherSubjects.push(s);
+            otherSubjectsList.push(s);
           }
         });
 
-        document.getElementById("cseSubjectCount").textContent = cseSubjects.length;
-        document.getElementById("iseSubjectCount").textContent = iseSubjects.length;
-
-        const renderSubjectRows = (arr, emptyMsg) => {
-          if (!arr.length) {
-            return `<tr><td colspan="3" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">${emptyMsg}</td></tr>`;
-          }
-          return arr.map(s => `
-            <tr>
-              <td><strong>${s.code || s.id}</strong></td>
-              <td>${s.name || "-"}</td>
-              <td style="text-align: right; white-space: nowrap;">
-                <button onclick="deleteSubject('${s.id}')" class="btn btn-danger btn-sm" style="padding: 0.2rem 0.5rem; font-size: 0.75rem;">Delete</button>
-              </td>
-            </tr>
-          `).join("");
-        };
-
-        document.getElementById("cseSubjectsTableBody").innerHTML = renderSubjectRows(cseSubjects, "No CSE subjects registered yet.");
-        document.getElementById("iseSubjectsTableBody").innerHTML = renderSubjectRows(iseSubjects, "No ISE subjects registered yet.");
-
-        const otherSubjectsCard = document.getElementById("otherSubjectsCard");
-        if (otherSubjects.length > 0) {
-          otherSubjectsCard.style.display = "block";
-          document.getElementById("otherSubjectsTableBody").innerHTML = otherSubjects.map(s => `
-            <tr>
-              <td><strong>${s.code || s.id}</strong></td>
-              <td>${s.name || "-"}</td>
-              <td>${s.department || "-"}</td>
-              <td style="text-align: right;">
-                <button onclick="deleteSubject('${s.id}')" class="btn btn-danger btn-sm" style="padding: 0.2rem 0.5rem; font-size: 0.75rem;">Delete</button>
-              </td>
-            </tr>
-          `).join("");
-        } else {
-          otherSubjectsCard.style.display = "none";
-        }
-
+        renderAllSubjectTables();
       } catch (err) {
         showAlert("Error loading subjects: " + err.message, "danger");
       }
@@ -247,6 +419,8 @@
       const code = document.getElementById("subjectCode").value.trim().toUpperCase();
       const name = document.getElementById("subjectName").value.trim();
       const department = document.getElementById("subjectDept").value.trim();
+      const semester = document.getElementById("subjectSemester").value.trim();
+      const semNum = Number(semester);
 
       // Primary Key ID formatted directly from Course Code (e.g. CS501, 21CS51)
       const primaryKeyId = code.replace(/[^A-Z0-9]/g, '-').toUpperCase();
@@ -284,16 +458,17 @@
           return;
         }
 
-        // Save using Course Code as Primary Key ID
+        // Save using Course Code as Primary Key ID with semester
         await db.collection("subjects").doc(primaryKeyId).set({
           id: primaryKeyId,
           code: code,
           name: name,
           department: department,
+          semester: semNum,
           createdAt: new Date().toISOString()
-        });
+        }, { merge: true });
 
-        showAlert(`Subject ${code} - ${name} added successfully!`, "success");
+        showAlert(`Subject ${code} - ${name} (Semester ${semNum}) added successfully!`, "success");
         document.getElementById("subjectForm").reset();
         toggleSubjectForm();
         loadSubjects();

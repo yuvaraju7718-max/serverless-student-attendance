@@ -342,9 +342,9 @@
               subjectsSnap.docs.map(d => `<option value="${d.id}" ${d.id === preSubject ? 'selected' : ''}>${d.data().code || d.id} - ${d.data().name || ""}</option>`).join("");
           }
 
-          // If query params are provided, auto-trigger load
+          // If query params are provided, pre-select values but wait for teacher to press "Load Student Roster"
           if (preClass && preSubject) {
-            loadStudents();
+            showAlert(`Class '${preClass}' & Subject '${preSubject}' pre-selected. Click 'Load Student Roster' below to load students.`, "info");
           }
 
         } catch (err) {
@@ -600,6 +600,18 @@
         submitBtn.textContent = "💾 Save & Submit Attendance";
       }
     }
+
+    // Reset roster view whenever session inputs change so it strictly loads on button click
+    const resetRosterOnSelectionChange = () => {
+      if (rosterSection.style.display !== "none") {
+        rosterSection.style.display = "none";
+        showAlert("Session parameters changed. Click 'Load Student Roster' to load students for this session.", "info");
+      }
+    };
+    classSelect.addEventListener("change", resetRosterOnSelectionChange);
+    subjectSelect.addEventListener("change", resetRosterOnSelectionChange);
+    dateInput.addEventListener("change", resetRosterOnSelectionChange);
+    timeInput.addEventListener("change", resetRosterOnSelectionChange);
 
     loadStudentsBtn.addEventListener("click", loadStudents);
     submitBtn.addEventListener("click", submitAttendance);

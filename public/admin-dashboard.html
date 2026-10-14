@@ -93,8 +93,15 @@
 
     <!-- Recent Attendance Activity -->
     <div class="card">
-      <h3 class="card-title">Recent Attendance Submissions</h3>
-      <p class="card-subtitle">Real-time attendance logs submitted by teachers across all departments.</p>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; flex-wrap: wrap; gap: 0.5rem;">
+        <div>
+          <h3 class="card-title" style="margin-bottom: 0.25rem;">Recent Attendance Submissions</h3>
+          <p class="card-subtitle" style="margin-bottom: 0;">Class sessions and attendance reports submitted by faculty across all departments.</p>
+        </div>
+        <a href="reports.html" class="btn btn-secondary btn-sm" style="font-size: 0.8rem;">
+          📊 All Reports &rarr;
+        </a>
+      </div>
       
       <div class="table-responsive">
         <table class="table">
@@ -102,15 +109,14 @@
             <tr>
               <th>Date & Time</th>
               <th>Duration</th>
-              <th>Student Roll No</th>
               <th>Class</th>
               <th>Subject</th>
-              <th>Status</th>
+              <th style="text-align: right;">Attendance Report</th>
             </tr>
           </thead>
           <tbody id="recentAttendanceTable">
             <tr>
-              <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">
+              <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">
                 Loading attendance records...
               </td>
             </tr>
@@ -119,6 +125,72 @@
       </div>
     </div>
   </main>
+
+  <!-- Modal for Single-Class Session Attendance Report -->
+  <div id="sessionReportModal" style="display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); z-index: 1000; align-items: center; justify-content: center; padding: 1rem;">
+    <div class="card" style="width: 100%; max-width: 680px; max-height: 85vh; display: flex; flex-direction: column; box-shadow: var(--shadow-lg); margin-bottom: 0;">
+      
+      <!-- Modal Header -->
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid var(--border); padding-bottom: 0.75rem; margin-bottom: 1rem;">
+        <div>
+          <h3 class="card-title" style="margin-bottom: 0.25rem; display: flex; align-items: center; gap: 0.5rem;">
+            📋 Class Attendance Report
+          </h3>
+          <p id="modalSessionSubtitle" style="font-size: 0.85rem; color: var(--text-muted); margin: 0;">
+            Class session details and student turnout breakdown.
+          </p>
+        </div>
+        <button onclick="closeSessionReport()" class="btn btn-secondary btn-sm" style="padding: 0.25rem 0.5rem; font-size: 1rem; line-height: 1;">&times;</button>
+      </div>
+
+      <!-- Turnout Summary Pills -->
+      <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.75rem; margin-bottom: 1rem;">
+        <div style="background: var(--background); border: 1px solid var(--border); border-radius: 6px; padding: 0.5rem; text-align: center;">
+          <div style="font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase;">Total</div>
+          <div id="modalTotalStudents" style="font-size: 1.25rem; font-weight: 700; color: var(--text);">0</div>
+        </div>
+        <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; padding: 0.5rem; text-align: center;">
+          <div style="font-size: 0.7rem; color: #166534; text-transform: uppercase;">Present</div>
+          <div id="modalPresentCount" style="font-size: 1.25rem; font-weight: 700; color: #16a34a;">0</div>
+        </div>
+        <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 6px; padding: 0.5rem; text-align: center;">
+          <div style="font-size: 0.7rem; color: #991b1b; text-transform: uppercase;">Absent</div>
+          <div id="modalAbsentCount" style="font-size: 1.25rem; font-weight: 700; color: #dc2626;">0</div>
+        </div>
+        <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; padding: 0.5rem; text-align: center;">
+          <div style="font-size: 0.7rem; color: #1e40af; text-transform: uppercase;">Turnout</div>
+          <div id="modalTurnoutPct" style="font-size: 1.25rem; font-weight: 700; color: #2563eb;">0%</div>
+        </div>
+      </div>
+
+      <!-- Student List Table inside modal -->
+      <div class="table-responsive" style="flex: 1; overflow-y: auto; max-height: 45vh; border: 1px solid var(--border); border-radius: 6px;">
+        <table class="table" style="margin-bottom: 0;">
+          <thead style="position: sticky; top: 0; background: var(--surface); z-index: 2;">
+            <tr>
+              <th style="width: 60px;">S.No</th>
+              <th>Roll Number</th>
+              <th>Student Name</th>
+              <th style="text-align: center; width: 120px;">Status</th>
+            </tr>
+          </thead>
+          <tbody id="modalStudentRosterBody">
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Modal Footer -->
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1rem; border-top: 1px solid var(--border); padding-top: 0.75rem;">
+        <a id="modalFullReportLink" href="reports.html" class="btn btn-secondary btn-sm" style="font-size: 0.8rem;">
+          📈 View Cumulative Report &rarr;
+        </a>
+        <div style="display: flex; gap: 0.5rem;">
+          <button onclick="window.print()" class="btn btn-secondary btn-sm">🖨️ Print</button>
+          <button onclick="closeSessionReport()" class="btn btn-primary btn-sm">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <footer>
     <p>Serverless Student Attendance Management System &bull; Admin Portal</p>
@@ -130,6 +202,8 @@
     // Protect page: Only admin role can access
     protectPage(["admin"]);
 
+    window.cachedAdminSessions = {};
+
     // Load live metric totals and recent attendance
     async function loadAdminData() {
       if (!db) return;
@@ -139,7 +213,7 @@
           db.collection("teachers").get(),
           db.collection("classes").get(),
           db.collection("subjects").get(),
-          db.collection("attendance").orderBy("date", "desc").limit(10).get()
+          db.collection("attendance").get()
         ]);
 
         document.getElementById("totalStudents").textContent = studentsSnap.size;
@@ -153,45 +227,79 @@
           return;
         }
 
-        // Map student photoUrls
-        const studentPhotos = {};
-        studentsSnap.forEach(d => {
-          const s = d.data();
-          if (s.photoUrl) {
-            studentPhotos[d.id] = s.photoUrl;
-            if (s.rollNumber) studentPhotos[s.rollNumber] = s.photoUrl;
+        // Aggregate records into sessions
+        const sessionsMap = {};
+        attendanceSnap.forEach(doc => {
+          const row = doc.data();
+          if (!row.date || !row.subjectId || !row.classId) return;
+
+          const sKey = `${row.date}_${row.rawTime || row.time || 'default'}_${row.subjectId}_${row.classId}`;
+          if (!sessionsMap[sKey]) {
+            sessionsMap[sKey] = {
+              id: sKey,
+              date: row.date || "-",
+              time: row.time || (row.createdAt ? new Date(row.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ""),
+              rawTime: row.rawTime || "",
+              hours: Number(row.hours) || 1,
+              classId: row.classId || "-",
+              subjectId: row.subjectId || "-",
+              facultyName: row.teacherName || row.facultyName || row.faculty || "",
+              students: []
+            };
           }
+
+          sessionsMap[sKey].students.push({
+            rollNumber: row.rollNumber || row.studentId || "N/A",
+            name: (row.studentName || "Student").toUpperCase(),
+            status: row.status || "Present"
+          });
         });
 
-        tableBody.innerHTML = attendanceSnap.docs.map(doc => {
-          const data = doc.data();
-          const isPresent = data.status === "Present";
-          const photo = data.photoUrl || studentPhotos[data.studentId] || studentPhotos[data.rollNumber] || "";
-          const photoHtml = photo 
-            ? `<img src="${photo}" alt="Student" class="avatar-circle avatar-sm" />` 
-            : `<div class="avatar-circle avatar-sm" style="display:inline-flex; align-items:center; justify-content:center;">${(data.studentName || data.rollNumber || 'S').charAt(0).toUpperCase()}</div>`;
-          const timeDisplay = data.time ? `<div style="font-size:0.75rem; color:var(--text-muted); margin-top:0.2rem;">⏰ ${data.time}</div>` : "";
-          const hoursDisplay = `<span class="badge" style="background:#e0f2fe; color:#0369a1; font-size:0.75rem;">${data.hours || 1} hr${(data.hours || 1) > 1 ? 's' : ''}</span>`;
+        window.cachedAdminSessions = sessionsMap;
+        const sessionList = Object.values(sessionsMap);
+
+        // Sort sessions descending by date and time
+        sessionList.sort((a, b) => {
+          const dateCmp = (b.date || "").localeCompare(a.date || "");
+          if (dateCmp !== 0) return dateCmp;
+          return (b.rawTime || b.time || "").localeCompare(a.rawTime || a.time || "");
+        });
+
+        if (sessionList.length === 0) {
+          tableBody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">No attendance sessions recorded yet.</td></tr>`;
+          return;
+        }
+
+        // Show recent sessions (latest 15)
+        const recentSessions = sessionList.slice(0, 15);
+
+        tableBody.innerHTML = recentSessions.map(s => {
+          const timeDisplay = s.time ? `<div style="font-size:0.75rem; color:var(--text-muted); margin-top:0.2rem;">⏰ ${s.time}</div>` : "";
+          const hoursDisplay = `<span class="badge" style="background:#e0f2fe; color:#0369a1; font-weight:600; font-size:0.75rem;">${s.hours} hr${s.hours > 1 ? 's' : ''}</span>`;
+          const totalCount = s.students.length;
+          const presentCount = s.students.filter(x => x.status === "Present").length;
+          const turnoutPct = totalCount > 0 ? Math.round((presentCount / totalCount) * 100) : 0;
+          const turnoutColor = turnoutPct >= 75 ? '#166534' : '#991b1b';
+          const turnoutBg = turnoutPct >= 75 ? '#dcfce7' : '#fee2e2';
 
           return `
             <tr>
               <td>
-                <strong>${data.date || "-"}</strong>
+                <strong>${s.date}</strong>
                 ${timeDisplay}
               </td>
               <td>${hoursDisplay}</td>
-              <td>
-                <div class="user-badge-cell">
-                  ${photoHtml}
-                  <strong>${data.rollNumber || data.studentId || "-"}</strong>
+              <td><strong>${s.classId}</strong></td>
+              <td><strong>${s.subjectId}</strong></td>
+              <td style="text-align: right; white-space: nowrap;">
+                <div style="display: inline-flex; align-items: center; gap: 0.6rem;">
+                  <span class="badge" style="background:${turnoutBg}; color:${turnoutColor}; font-size:0.75rem; font-weight:600;">
+                    ${turnoutPct}% (${presentCount}/${totalCount})
+                  </span>
+                  <button onclick="openAdminSessionReport('${encodeURIComponent(s.id)}')" class="btn btn-primary btn-sm" style="padding: 0.25rem 0.65rem; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.35rem;">
+                    📊 View Report
+                  </button>
                 </div>
-              </td>
-              <td>${data.classId || "-"}</td>
-              <td>${data.subjectId || "-"}</td>
-              <td>
-                <span class="badge ${isPresent ? 'badge-present' : 'badge-absent'}">
-                  ${data.status || "-"}
-                </span>
               </td>
             </tr>
           `;
@@ -200,6 +308,54 @@
       } catch (err) {
         console.warn("Could not load real-time admin metrics:", err);
       }
+    }
+
+    function openAdminSessionReport(encodedKey) {
+      const sKey = decodeURIComponent(encodedKey);
+      const s = window.cachedAdminSessions ? window.cachedAdminSessions[sKey] : null;
+      if (!s) return;
+
+      const modal = document.getElementById("sessionReportModal");
+      const facultyText = s.facultyName ? ` • Faculty: ${s.facultyName}` : '';
+      document.getElementById("modalSessionSubtitle").textContent = 
+        `Class: ${s.classId} • Subject: ${s.subjectId} • Date: ${s.date} • Time: ${s.time || 'N/A'} • Duration: ${s.hours} hr(s)${facultyText}`;
+
+      const total = s.students.length;
+      const present = s.students.filter(x => x.status === "Present").length;
+      const absent = total - present;
+      const pct = total > 0 ? Math.round((present / total) * 100) : 0;
+
+      document.getElementById("modalTotalStudents").textContent = total;
+      document.getElementById("modalPresentCount").textContent = present;
+      document.getElementById("modalAbsentCount").textContent = absent;
+      document.getElementById("modalTurnoutPct").textContent = `${pct}%`;
+
+      // Sort students by roll number
+      const sortedStudents = [...s.students];
+      sortedStudents.sort((a, b) => (a.rollNumber || "").localeCompare(b.rollNumber || "", undefined, { numeric: true }));
+
+      document.getElementById("modalStudentRosterBody").innerHTML = sortedStudents.map((st, idx) => `
+        <tr>
+          <td>${idx + 1}</td>
+          <td><strong>${st.rollNumber}</strong></td>
+          <td>${st.name}</td>
+          <td style="text-align: center;">
+            <span class="badge ${st.status === 'Present' ? 'badge-present' : 'badge-absent'}">
+              ${st.status}
+            </span>
+          </td>
+        </tr>
+      `).join("");
+
+      document.getElementById("modalFullReportLink").href = 
+        `reports.html?classId=${encodeURIComponent(s.classId)}&subjectId=${encodeURIComponent(s.subjectId)}&startDate=${s.date}&endDate=${s.date}`;
+
+      modal.style.display = "flex";
+    }
+
+    function closeSessionReport() {
+      const modal = document.getElementById("sessionReportModal");
+      if (modal) modal.style.display = "none";
     }
 
     window.addEventListener("DOMContentLoaded", loadAdminData);

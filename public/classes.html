@@ -9,6 +9,39 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+  <style>
+    .sem-filter-btn {
+      padding: 0.35rem 0.8rem;
+      border-radius: 9999px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--secondary);
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease-in-out;
+    }
+    .sem-filter-btn:hover {
+      border-color: var(--primary);
+      color: var(--primary);
+      background: var(--primary-light);
+    }
+    .sem-filter-btn.active {
+      background: var(--primary);
+      color: #ffffff;
+      border-color: var(--primary);
+      box-shadow: 0 1px 3px rgba(37, 99, 235, 0.3);
+    }
+    .semester-heading-row td {
+      background: #f1f5f9;
+      border-top: 2px solid #cbd5e1;
+      border-bottom: 1px solid #e2e8f0;
+      padding: 0.5rem 0.85rem;
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: #1e293b;
+    }
+  </style>
 </head>
 <body>
 
@@ -36,7 +69,7 @@
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
       <div>
         <h1 style="font-size: 1.75rem;">Class & Section Management</h1>
-        <p style="color: var(--text-muted); font-size: 0.95rem;">Configure academic classes, sections, and department cohorts.</p>
+        <p style="color: var(--text-muted); font-size: 0.95rem;">Configure academic classes, sections, and department cohorts by semester.</p>
       </div>
       <div>
         <button onclick="toggleClassForm()" class="btn btn-primary btn-sm">+ Add New Class</button>
@@ -45,23 +78,56 @@
 
     <div id="statusAlert" class="alert"></div>
 
+    <!-- Semester Filter Bar -->
+    <div class="card" style="padding: 0.85rem 1.25rem; margin-bottom: 1.25rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.75rem;">
+      <div style="display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;">
+        <span style="font-weight: 600; font-size: 0.88rem; color: var(--secondary);">Filter by Semester:</span>
+        <div id="semFilterButtons" style="display: flex; flex-wrap: wrap; gap: 0.4rem;">
+          <button type="button" class="sem-filter-btn active" data-sem="all" onclick="setSemesterFilter('all')">All Semesters</button>
+          <button type="button" class="sem-filter-btn" data-sem="1" onclick="setSemesterFilter(1)">Sem 1</button>
+          <button type="button" class="sem-filter-btn" data-sem="2" onclick="setSemesterFilter(2)">Sem 2</button>
+          <button type="button" class="sem-filter-btn" data-sem="3" onclick="setSemesterFilter(3)">Sem 3</button>
+          <button type="button" class="sem-filter-btn" data-sem="4" onclick="setSemesterFilter(4)">Sem 4</button>
+          <button type="button" class="sem-filter-btn" data-sem="5" onclick="setSemesterFilter(5)">Sem 5</button>
+          <button type="button" class="sem-filter-btn" data-sem="6" onclick="setSemesterFilter(6)">Sem 6</button>
+          <button type="button" class="sem-filter-btn" data-sem="7" onclick="setSemesterFilter(7)">Sem 7</button>
+          <button type="button" class="sem-filter-btn" data-sem="8" onclick="setSemesterFilter(8)">Sem 8</button>
+        </div>
+      </div>
+      <div style="font-size: 0.85rem; color: var(--text-muted); font-weight: 500;" id="filterStatusText">Showing all semesters</div>
+    </div>
+
     <!-- Add Class Form -->
     <div class="card" id="addClassCard" style="display: none;">
       <h3 class="card-title">Add Class / Section</h3>
       <form id="classForm" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-top: 1rem;">
         <div class="form-group" style="margin-bottom: 0;">
           <label class="form-label" for="className">Class Name / Title</label>
-          <input type="text" id="className" class="form-control" placeholder="e.g. CSE-3A (3rd Year Section A)" required />
+          <input type="text" id="className" class="form-control" placeholder="e.g. CSE-5A (5th Sem Section A)" required />
         </div>
 
         <div class="form-group" style="margin-bottom: 0;">
           <label class="form-label" for="classDept">Department</label>
-          <input type="text" id="classDept" class="form-control" placeholder="e.g. Computer Science" required />
+          <input type="text" id="classDept" list="classDeptList" class="form-control" placeholder="e.g. Computer Science and Engineering" required />
+          <datalist id="classDeptList">
+            <option value="Computer Science and Engineering (CSE)">
+            <option value="Information Science and Engineering (ISE)">
+          </datalist>
         </div>
 
         <div class="form-group" style="margin-bottom: 0;">
           <label class="form-label" for="classSemester">Semester</label>
-          <input type="number" id="classSemester" class="form-control" placeholder="e.g. 5" min="1" max="8" required />
+          <select id="classSemester" class="form-control" required>
+            <option value="">-- Select Semester --</option>
+            <option value="1">Semester 1 (1st Year)</option>
+            <option value="2">Semester 2 (1st Year)</option>
+            <option value="3">Semester 3 (2nd Year)</option>
+            <option value="4">Semester 4 (2nd Year)</option>
+            <option value="5">Semester 5 (3rd Year)</option>
+            <option value="6">Semester 6 (3rd Year)</option>
+            <option value="7">Semester 7 (4th Year)</option>
+            <option value="8">Semester 8 (4th Year)</option>
+          </select>
         </div>
 
         <div style="grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.5rem;">
@@ -171,6 +237,127 @@
     }
 
     let allClasses = [];
+    let cseClassesList = [];
+    let iseClassesList = [];
+    let otherClassesList = [];
+    let currentSemFilter = 'all';
+
+    function setSemesterFilter(sem) {
+      currentSemFilter = sem;
+      document.querySelectorAll("#semFilterButtons .sem-filter-btn").forEach(btn => {
+        btn.classList.toggle("active", String(btn.getAttribute("data-sem")) === String(sem));
+      });
+      document.getElementById("filterStatusText").textContent = 
+        sem === 'all' ? 'Showing all semesters' : `Filtered to Semester ${sem}`;
+      renderAllClassTables();
+    }
+
+    function getClassSemester(c) {
+      if (c.semester && Number(c.semester) >= 1 && Number(c.semester) <= 8) {
+        return Number(c.semester);
+      }
+      const name = (c.name || c.id || "").toUpperCase();
+      const m = name.match(/(?:CSE|ISE|CS|IS)[-_ ]?([1-8])/i);
+      if (m && m[1]) return Number(m[1]);
+      return null;
+    }
+
+    function renderGroupedClassRows(arr, deptLabel) {
+      let filtered = arr;
+      if (currentSemFilter !== 'all') {
+        const semNum = Number(currentSemFilter);
+        filtered = arr.filter(c => getClassSemester(c) === semNum);
+        if (!filtered.length) {
+          return `<tr><td colspan="3" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">No ${deptLabel} classes found for Semester ${semNum}.</td></tr>`;
+        }
+      }
+
+      if (!filtered.length) {
+        return `<tr><td colspan="3" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">No ${deptLabel} classes registered yet.</td></tr>`;
+      }
+
+      // Group by semester
+      const grouped = {};
+      filtered.forEach(c => {
+        const sem = getClassSemester(c);
+        const semNum = sem !== null ? sem : 99;
+        const key = sem !== null ? `Semester ${sem}` : "Other / Unassigned";
+        if (!grouped[key]) grouped[key] = { semNum, key, list: [] };
+        grouped[key].list.push(c);
+      });
+
+      const sortedKeys = Object.keys(grouped).sort((a, b) => grouped[a].semNum - grouped[b].semNum);
+
+      let html = "";
+      sortedKeys.forEach(k => {
+        const g = grouped[k];
+        html += `
+          <tr class="semester-heading-row">
+            <td colspan="3">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="display: inline-flex; align-items: center; gap: 0.4rem;">
+                  📚 ${k}
+                </span>
+                <span class="badge" style="background: rgba(37, 99, 235, 0.12); color: var(--primary); font-size: 0.75rem; padding: 0.15rem 0.5rem; border-radius: 9999px;">
+                  ${g.list.length} ${g.list.length === 1 ? 'class' : 'classes'}
+                </span>
+              </div>
+            </td>
+          </tr>
+        `;
+
+        g.list.forEach(c => {
+          html += `
+            <tr>
+              <td>
+                <strong>${c.name || c.id}</strong>
+                ${c.department ? `<div style="font-size: 0.78rem; color: var(--text-muted);">${c.department}</div>` : ''}
+              </td>
+              <td>
+                <span class="badge" style="background: #e2e8f0; color: #334155; font-size: 0.8rem;">
+                  Semester ${c.semester || "-"}
+                </span>
+              </td>
+              <td style="text-align: right; white-space: nowrap;">
+                <button onclick="deleteClass('${c.id}')" class="btn btn-danger btn-sm" style="padding: 0.2rem 0.6rem; font-size: 0.8rem;">Delete</button>
+              </td>
+            </tr>
+          `;
+        });
+      });
+
+      return html;
+    }
+
+    function renderAllClassTables() {
+      document.getElementById("cseClassCount").textContent = cseClassesList.length;
+      document.getElementById("iseClassCount").textContent = iseClassesList.length;
+
+      document.getElementById("cseClassesTableBody").innerHTML = renderGroupedClassRows(cseClassesList, "CSE");
+      document.getElementById("iseClassesTableBody").innerHTML = renderGroupedClassRows(iseClassesList, "ISE");
+
+      const otherClassesCard = document.getElementById("otherClassesCard");
+      let otherFiltered = otherClassesList;
+      if (currentSemFilter !== 'all') {
+        const semNum = Number(currentSemFilter);
+        otherFiltered = otherClassesList.filter(c => getClassSemester(c) === semNum);
+      }
+      if (otherFiltered.length > 0) {
+        otherClassesCard.style.display = "block";
+        document.getElementById("otherClassesTableBody").innerHTML = otherFiltered.map(c => `
+          <tr>
+            <td><strong>${c.name || c.id}</strong></td>
+            <td>${c.department || "-"}</td>
+            <td>Semester ${c.semester || "-"}</td>
+            <td style="text-align: right; white-space: nowrap;">
+              <button onclick="deleteClass('${c.id}')" class="btn btn-danger btn-sm" style="padding: 0.2rem 0.6rem; font-size: 0.8rem;">Delete</button>
+            </td>
+          </tr>
+        `).join("");
+      } else {
+        otherClassesCard.style.display = "none";
+      }
+    }
 
     async function loadClasses() {
       if (!db) return;
@@ -178,60 +365,24 @@
         const snap = await db.collection("classes").get();
         allClasses = snap.docs.map(d => ({ id: d.id, ...d.data() }));
 
-        const cseClasses = [];
-        const iseClasses = [];
-        const otherClasses = [];
+        cseClassesList = [];
+        iseClassesList = [];
+        otherClassesList = [];
 
         allClasses.forEach(c => {
           const dept = (c.department || "").toUpperCase();
           const name = (c.name || c.id || "").toUpperCase();
 
           if (dept.includes("CSE") || dept.includes("COMPUTER") || dept.includes("CS") || name.startsWith("CSE") || name.startsWith("CS")) {
-            cseClasses.push(c);
+            cseClassesList.push(c);
           } else if (dept.includes("ISE") || dept.includes("INFORMATION") || dept.includes("IS") || name.startsWith("ISE") || name.startsWith("IS")) {
-            iseClasses.push(c);
+            iseClassesList.push(c);
           } else {
-            otherClasses.push(c);
+            otherClassesList.push(c);
           }
         });
 
-        document.getElementById("cseClassCount").textContent = cseClasses.length;
-        document.getElementById("iseClassCount").textContent = iseClasses.length;
-
-        const renderClassRows = (arr, emptyMsg) => {
-          if (!arr.length) {
-            return `<tr><td colspan="3" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">${emptyMsg}</td></tr>`;
-          }
-          return arr.map(c => `
-            <tr>
-              <td><strong>${c.name || c.id}</strong></td>
-              <td>Semester ${c.semester || "-"}</td>
-              <td style="text-align: right; white-space: nowrap;">
-                <button onclick="deleteClass('${c.id}')" class="btn btn-danger btn-sm" style="padding: 0.2rem 0.6rem; font-size: 0.8rem;">Delete</button>
-              </td>
-            </tr>
-          `).join("");
-        };
-
-        document.getElementById("cseClassesTableBody").innerHTML = renderClassRows(cseClasses, "No CSE classes registered yet.");
-        document.getElementById("iseClassesTableBody").innerHTML = renderClassRows(iseClasses, "No ISE classes registered yet.");
-
-        const otherClassesCard = document.getElementById("otherClassesCard");
-        if (otherClasses.length > 0) {
-          otherClassesCard.style.display = "block";
-          document.getElementById("otherClassesTableBody").innerHTML = otherClasses.map(c => `
-            <tr>
-              <td><strong>${c.name || c.id}</strong></td>
-              <td>${c.department || "-"}</td>
-              <td>Semester ${c.semester || "-"}</td>
-              <td style="text-align: right; white-space: nowrap;">
-                <button onclick="deleteClass('${c.id}')" class="btn btn-danger btn-sm" style="padding: 0.2rem 0.6rem; font-size: 0.8rem;">Delete</button>
-              </td>
-            </tr>
-          `).join("");
-        } else {
-          otherClassesCard.style.display = "none";
-        }
+        renderAllClassTables();
       } catch (err) {
         showAlert("Error loading classes: " + err.message, "danger");
       }
