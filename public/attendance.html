@@ -5,6 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Mark Attendance | Serverless Attendance</title>
   <link rel="stylesheet" href="css/style.css">
+  <style>
+    @media (max-width: 992px) {
+      .attendance-split-grid {
+        grid-template-columns: 1fr !important;
+      }
+    }
+  </style>
   
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
@@ -83,42 +90,64 @@
       </div>
     </div>
 
-    <!-- Student Attendance Roster Card -->
-    <div class="card" id="rosterSection" style="display: none;">
-      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 1rem;">
-        <div>
-          <h3 class="card-title" style="margin-bottom: 0.25rem;">2. Student Roll Call</h3>
-          <p class="card-subtitle" id="rosterSubtitle" style="margin-bottom: 0;">Mark each student as Present or Absent.</p>
-        </div>
-        <div style="display: flex; gap: 0.5rem;">
-          <button type="button" class="btn btn-secondary btn-sm" onclick="markAll(true)">Mark All Present</button>
-          <button type="button" class="btn btn-secondary btn-sm" onclick="markAll(false)">Mark All Absent</button>
-        </div>
-      </div>
+    <!-- Student Attendance Roster & Shortage Split Section -->
+    <div id="rosterSection" style="display: none;">
+      <div class="attendance-split-grid" style="display: grid; grid-template-columns: minmax(0, 1.8fr) minmax(320px, 1.2fr); gap: 1.5rem; align-items: start;">
+        
+        <!-- Left Column: Student Roll Call Table -->
+        <div class="card" style="margin-bottom: 0;">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 1rem;">
+            <div>
+              <h3 class="card-title" style="margin-bottom: 0.25rem;">2. Student Roll Call</h3>
+              <p class="card-subtitle" id="rosterSubtitle" style="margin-bottom: 0;">Mark each student as Present or Absent.</p>
+            </div>
+            <div style="display: flex; gap: 0.5rem;">
+              <button type="button" class="btn btn-secondary btn-sm" onclick="markAll(true)">Mark All Present</button>
+              <button type="button" class="btn btn-secondary btn-sm" onclick="markAll(false)">Mark All Absent</button>
+            </div>
+          </div>
 
-      <div class="table-responsive">
-        <table class="table">
-          <thead>
-            <tr>
-              <th style="width: 80px;">S.No</th>
-              <th>Roll Number</th>
-              <th>Student Name</th>
-              <th style="text-align: center; width: 220px;">Attendance Status</th>
-            </tr>
-          </thead>
-          <tbody id="studentRosterBody">
-            <!-- Student rows dynamically generated -->
-          </tbody>
-        </table>
-      </div>
+          <div class="table-responsive">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th style="width: 60px;">S.No</th>
+                  <th>Roll Number</th>
+                  <th>Student Name</th>
+                  <th style="text-align: center; width: 200px;">Attendance Status</th>
+                </tr>
+              </thead>
+              <tbody id="studentRosterBody">
+                <!-- Student rows dynamically generated -->
+              </tbody>
+            </table>
+          </div>
 
-      <div style="margin-top: 1.5rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
-        <div id="rosterSummary" style="font-size: 0.95rem; color: var(--secondary);">
-          Total: <strong id="totalCount">0</strong> &bull; Present: <strong id="presentCount" style="color: var(--success);">0</strong> &bull; Absent: <strong id="absentCount" style="color: var(--danger);">0</strong>
+          <div style="margin-top: 1.5rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+            <div id="rosterSummary" style="font-size: 0.95rem; color: var(--secondary);">
+              Total: <strong id="totalCount">0</strong> &bull; Present: <strong id="presentCount" style="color: var(--success);">0</strong> &bull; Absent: <strong id="absentCount" style="color: var(--danger);">0</strong>
+            </div>
+            <button type="button" id="submitAttendanceBtn" class="btn btn-primary">
+              💾 Save & Submit Attendance
+            </button>
+          </div>
         </div>
-        <button type="button" id="submitAttendanceBtn" class="btn btn-primary">
-          💾 Save & Submit Attendance
-        </button>
+
+        <!-- Right Column: Shortage Students (<75%) for this Class & Subject Only -->
+        <div class="card" style="margin-bottom: 0; position: sticky; top: 1rem;">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem; margin-bottom: 0.75rem;">
+            <div>
+              <h3 class="card-title" style="margin-bottom: 0.2rem; font-size: 1.15rem;">⚠️ Subject Shortage (&lt;75%)</h3>
+              <p class="card-subtitle" id="shortageSubtitle" style="margin-bottom: 0; font-size: 0.85rem;">Enrolled students below 75% in this subject.</p>
+            </div>
+            <span id="shortageBadge" class="badge" style="background: #fee2e2; color: #991b1b; font-size: 0.8rem; font-weight: 700; white-space: nowrap;">0 Students</span>
+          </div>
+
+          <div id="shortageStudentsContainer">
+            <!-- Dynamic shortage student list -->
+          </div>
+        </div>
+
       </div>
     </div>
   </main>
@@ -161,6 +190,35 @@
 
     let currentStudents = [];
     let currentTeacherBranch = null; // "CSE" | "ISE" | null
+    let isTeacherUser = false;
+    let teacherClassToSubjects = new Map();
+
+    function updateAttendanceSubjectDropdown(selectedClass, defaultSubject = "") {
+      if (!isTeacherUser) return;
+      if (!selectedClass) {
+        subjectSelect.innerHTML = '<option value="">-- Choose a Class first --</option>';
+        return;
+      }
+
+      const subjectsMap = teacherClassToSubjects.get(selectedClass);
+      if (!subjectsMap || subjectsMap.size === 0) {
+        subjectSelect.innerHTML = '<option value="">-- No subjects assigned for this class --</option>';
+        return;
+      }
+
+      const subs = Array.from(subjectsMap.entries());
+      if (subs.length === 1) {
+        const [subId, subName] = subs[0];
+        subjectSelect.innerHTML = `<option value="${subId}" selected>${subName}</option>`;
+      } else {
+        const options = subs.map(([subId, subName]) => {
+          const selected = (subId === defaultSubject) ? 'selected' : '';
+          return `<option value="${subId}" ${selected}>${subName}</option>`;
+        }).join("");
+        subjectSelect.innerHTML = '<option value="">-- Choose Subject --</option>' + options;
+        if (defaultSubject) subjectSelect.value = defaultSubject;
+      }
+    }
 
     function isCseItem(str) {
       const s = (str || "").toUpperCase();
@@ -247,16 +305,23 @@
               subjectMap[d.id] = `${data.code || d.id} ${data.name || ''} ${data.department || ''}`;
             });
 
+            isTeacherUser = true;
+            teacherClassToSubjects = new Map();
             const allAsgns = await db.collection("assignments").get();
             const classSet = new Set();
             const subjectSet = new Set();
 
             allAsgns.forEach(doc => {
               const d = doc.data();
+              const matchesName = d.teacherName && teacherName && (
+                d.teacherName.toLowerCase() === teacherName.toLowerCase() ||
+                d.teacherName.toLowerCase().includes(teacherName.toLowerCase()) ||
+                teacherName.toLowerCase().includes(d.teacherName.toLowerCase())
+              );
               const isMine = (
                 possibleTeacherIds.includes(d.teacherId) ||
-                (d.teacherEmail && d.teacherEmail.toLowerCase() === user.email.toLowerCase()) ||
-                (d.teacherName && teacherName && d.teacherName.toLowerCase() === teacherName.toLowerCase())
+                (d.teacherEmail && user.email && d.teacherEmail.toLowerCase() === user.email.toLowerCase()) ||
+                matchesName
               );
               if (isMine) {
                 const cInfo = classMap[d.classId] || d.classId;
@@ -265,6 +330,10 @@
                 if (currentTeacherBranch === "ISE") {
                   if (isIseItem(cInfo) && !isCseItem(cInfo)) {
                     classSet.add(d.classId);
+                    if (d.classId && d.subjectId) {
+                      if (!teacherClassToSubjects.has(d.classId)) teacherClassToSubjects.set(d.classId, new Map());
+                      teacherClassToSubjects.get(d.classId).set(d.subjectId, d.subjectName || d.subjectId);
+                    }
                   }
                   if (isIseItem(sInfo) && !isCseItem(sInfo)) {
                     subjectSet.add(JSON.stringify({ id: d.subjectId, name: d.subjectName || d.subjectId }));
@@ -272,12 +341,22 @@
                 } else if (currentTeacherBranch === "CSE") {
                   if (isCseItem(cInfo) && !isIseItem(cInfo)) {
                     classSet.add(d.classId);
+                    if (d.classId && d.subjectId) {
+                      if (!teacherClassToSubjects.has(d.classId)) teacherClassToSubjects.set(d.classId, new Map());
+                      teacherClassToSubjects.get(d.classId).set(d.subjectId, d.subjectName || d.subjectId);
+                    }
                   }
                   if (isCseItem(sInfo) && !isIseItem(sInfo)) {
                     subjectSet.add(JSON.stringify({ id: d.subjectId, name: d.subjectName || d.subjectId }));
                   }
                 } else {
-                  if (d.classId) classSet.add(d.classId);
+                  if (d.classId) {
+                    classSet.add(d.classId);
+                    if (d.subjectId) {
+                      if (!teacherClassToSubjects.has(d.classId)) teacherClassToSubjects.set(d.classId, new Map());
+                      teacherClassToSubjects.get(d.classId).set(d.subjectId, d.subjectName || d.subjectId);
+                    }
+                  }
                   if (d.subjectId) subjectSet.add(JSON.stringify({ id: d.subjectId, name: d.subjectName || d.subjectId }));
                 }
               }
@@ -316,14 +395,23 @@
               showAlert("🔒 CSE Faculty Mode: You are authorized ONLY to select and mark attendance for Computer Science (CSE) classes & courses.", "info");
             }
 
-            classSelect.innerHTML = '<option value="">-- Choose Class --</option>' + 
-              Array.from(classSet).map(c => `<option value="${c}" ${c === preClass ? 'selected' : ''}>${c}</option>`).join("");
+            const classArray = Array.from(classSet);
+            const targetClass = preClass || (classArray.length === 1 ? classArray[0] : "");
 
-            subjectSelect.innerHTML = '<option value="">-- Choose Subject --</option>' + 
-              Array.from(subjectSet).map(s => {
-                const sub = JSON.parse(s);
-                return `<option value="${sub.id}" ${sub.id === preSubject ? 'selected' : ''}>${sub.name}</option>`;
-              }).join("");
+            classSelect.innerHTML = '<option value="">-- Choose Class --</option>' + 
+              classArray.map(c => `<option value="${c}" ${c === targetClass ? 'selected' : ''}>${c}</option>`).join("");
+
+            if (targetClass && teacherClassToSubjects.size > 0) {
+              updateAttendanceSubjectDropdown(targetClass, preSubject);
+            } else if (teacherClassToSubjects.size > 0) {
+              subjectSelect.innerHTML = '<option value="">-- Choose a Class first --</option>';
+            } else {
+              subjectSelect.innerHTML = '<option value="">-- Choose Subject --</option>' + 
+                Array.from(subjectSet).map(s => {
+                  const sub = JSON.parse(s);
+                  return `<option value="${sub.id}" ${sub.id === preSubject ? 'selected' : ''}>${sub.name}</option>`;
+                }).join("");
+            }
           } else {
             // Admin: Load all classes and subjects
             [classesSnap, subjectsSnap] = await Promise.all([
@@ -417,6 +505,75 @@
           }
         });
 
+        // Query cumulative attendance for this class to calculate shortage for THIS subject ONLY
+        const cumulativeSnap = await db.collection("attendance")
+          .where("classId", "==", classId)
+          .get();
+
+        const studentSubjectStats = {};
+        studentsSnap.docs.forEach(d => {
+          const s = d.data();
+          studentSubjectStats[d.id] = {
+            id: d.id,
+            rollNumber: s.rollNumber || "N/A",
+            name: (s.name || "Student").toUpperCase(),
+            photoUrl: s.photoUrl || "",
+            totalHours: 0,
+            presentHours: 0,
+            absentHours: 0
+          };
+        });
+
+        let hasSubjectSessions = false;
+        cumulativeSnap.forEach(doc => {
+          const row = doc.data();
+          const rSub = (row.subjectId || "").toLowerCase().trim();
+          const targetSub = subjectId.toLowerCase().trim();
+
+          // Only consider the subject the teacher is currently handling
+          if (rSub === targetSub) {
+            const sid = row.studentId;
+            const hours = Number(row.hours) || 1;
+            if (studentSubjectStats[sid]) {
+              hasSubjectSessions = true;
+              studentSubjectStats[sid].totalHours += hours;
+              if (row.status === "Present") {
+                studentSubjectStats[sid].presentHours += hours;
+              } else {
+                studentSubjectStats[sid].absentHours += hours;
+              }
+            }
+          }
+        });
+
+        // Filter students with attendance < 75% in this subject
+        const shortageStudents = [];
+        const shortageStudentIds = new Set();
+
+        Object.values(studentSubjectStats).forEach(st => {
+          if (st.totalHours > 0) {
+            const pct = Math.round((st.presentHours / st.totalHours) * 100);
+            st.percentage = pct;
+            if (pct < 75) {
+              const deficitHours = Math.max(1, Math.ceil(3 * st.totalHours - 4 * st.presentHours));
+              st.deficitHours = deficitHours;
+              shortageStudents.push(st);
+              shortageStudentIds.add(st.id);
+            }
+          }
+        });
+
+        window.currentShortageIds = shortageStudentIds;
+
+        // Sort shortage students: lowest percentage first, then by roll number
+        shortageStudents.sort((a, b) => {
+          if (a.percentage !== b.percentage) return a.percentage - b.percentage;
+          return (a.rollNumber || "").localeCompare(b.rollNumber || "", undefined, { numeric: true });
+        });
+
+        // Render Right-Side Shortage Alert Panel
+        renderShortagePanel(shortageStudents, hasSubjectSessions, classId, subjectId);
+
         currentStudents = studentsSnap.docs.map(d => {
           const s = d.data();
           return {
@@ -455,6 +612,98 @@
       }
     }
 
+    // Render Right-Side Subject Shortage Panel (<75%)
+    function renderShortagePanel(shortageList, hasSessions, targetClass, targetSubject) {
+      const container = document.getElementById("shortageStudentsContainer");
+      const badge = document.getElementById("shortageBadge");
+      const subtitleEl = document.getElementById("shortageSubtitle");
+
+      if (subtitleEl) {
+        subtitleEl.innerHTML = `<strong>${targetClass}</strong> students with &lt;75% in <strong>${targetSubject}</strong>`;
+      }
+
+      if (!hasSessions) {
+        badge.textContent = "0 Sessions";
+        badge.style.background = "#f1f5f9";
+        badge.style.color = "#475569";
+        container.innerHTML = `
+          <div style="text-align: center; padding: 1.75rem 1rem; color: var(--text-muted); background: #f8fafc; border-radius: 8px; border: 1px dashed var(--border);">
+            <div style="font-size: 1.8rem; margin-bottom: 0.35rem;">📅</div>
+            <h4 style="font-size: 0.95rem; color: var(--text); margin-bottom: 0.25rem;">First Sessions for Course</h4>
+            <p style="font-size: 0.85rem; margin-bottom: 0;">No previous attendance records exist yet for <strong>${targetSubject}</strong> in <strong>${targetClass}</strong>. Shortage alerts will display once sessions are recorded.</p>
+          </div>
+        `;
+        return;
+      }
+
+      if (shortageList.length === 0) {
+        badge.textContent = "0 Shortages";
+        badge.style.background = "#dcfce7";
+        badge.style.color = "#166534";
+        container.innerHTML = `
+          <div style="text-align: center; padding: 1.75rem 1rem; background: #f0fdf4; border-radius: 8px; border: 1px solid #bbf7d0;">
+            <div style="font-size: 1.8rem; margin-bottom: 0.35rem;">🎉</div>
+            <h4 style="font-size: 0.95rem; color: #166534; margin-bottom: 0.25rem;">All Students Above 75%!</h4>
+            <p style="font-size: 0.85rem; color: #15803d; margin-bottom: 0;">
+              Every student in <strong>${targetClass}</strong> currently meets or exceeds 75% attendance for <strong>${targetSubject}</strong>.
+            </p>
+          </div>
+        `;
+        return;
+      }
+
+      badge.textContent = `${shortageList.length} Student${shortageList.length > 1 ? 's' : ''}`;
+      badge.style.background = "#fee2e2";
+      badge.style.color = "#991b1b";
+
+      container.innerHTML = `
+        <div style="margin-bottom: 0.75rem; font-size: 0.82rem; color: #991b1b; background: #fff1f2; border: 1px solid #fecdd3; padding: 0.55rem 0.75rem; border-radius: 6px;">
+          ⚠️ <strong>${shortageList.length} student${shortageList.length > 1 ? 's have' : ' has'} attendance shortage (&lt;75%)</strong> in <strong>${targetSubject}</strong>.
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 0.75rem; max-height: 520px; overflow-y: auto; padding-right: 0.25rem;">
+          ${shortageList.map(st => {
+            const photoHtml = st.photoUrl 
+              ? `<img src="${st.photoUrl}" alt="${st.name}" class="avatar-circle avatar-sm" style="flex-shrink: 0;" />` 
+              : `<div class="avatar-circle avatar-sm" style="flex-shrink: 0; display:inline-flex; align-items:center; justify-content:center; background: #fee2e2; color: #991b1b; font-weight: 700;">${st.name.charAt(0)}</div>`;
+
+            const pctColor = st.percentage < 50 ? '#dc2626' : '#ea580c';
+            const pctBg = st.percentage < 50 ? '#fef2f2' : '#fffbeb';
+            const pctBorder = st.percentage < 50 ? '#fecaca' : '#fef3c7';
+
+            return `
+              <div style="background: var(--surface); border: 1px solid ${pctBorder}; border-left: 4px solid ${pctColor}; border-radius: 8px; padding: 0.75rem 0.85rem; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem; margin-bottom: 0.35rem;">
+                  <div style="display: flex; align-items: center; gap: 0.5rem; min-width: 0;">
+                    ${photoHtml}
+                    <div style="min-width: 0;">
+                      <div style="font-weight: 700; font-size: 0.88rem; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${st.name}</div>
+                      <div style="font-size: 0.78rem; color: var(--text-muted);">Roll No: <strong>${st.rollNumber}</strong></div>
+                    </div>
+                  </div>
+                  <div style="background: ${pctBg}; color: ${pctColor}; border: 1px solid ${pctBorder}; font-weight: 800; font-size: 0.95rem; padding: 0.15rem 0.5rem; border-radius: 6px; white-space: nowrap;">
+                    ${st.percentage}%
+                  </div>
+                </div>
+
+                <div style="margin-top: 0.4rem;">
+                  <div style="display: flex; justify-content: space-between; font-size: 0.78rem; color: var(--text-muted); margin-bottom: 0.25rem;">
+                    <span>Attended: <strong style="color: var(--success);">${st.presentHours}</strong> / ${st.totalHours} hrs</span>
+                    <span>Missed: <strong style="color: var(--danger);">${st.absentHours} hrs</strong></span>
+                  </div>
+                  <div class="progress-bar-container" style="height: 6px; background: #e2e8f0; border-radius: 9999px; overflow: hidden;">
+                    <div class="progress-bar" style="width: ${st.percentage}%; background: ${pctColor}; height: 100%;"></div>
+                  </div>
+                  <div style="margin-top: 0.35rem; font-size: 0.75rem; color: #b91c1c;">
+                    Needs next <strong>${st.deficitHours} hr${st.deficitHours > 1 ? 's' : ''}</strong> without absence for 75%.
+                  </div>
+                </div>
+              </div>
+            `;
+          }).join("")}
+        </div>
+      `;
+    }
+
     // Render roster table
     function renderRoster() {
       studentRosterBody.innerHTML = currentStudents.map((s, idx) => {
@@ -462,14 +711,20 @@
           ? `<img src="${s.photoUrl}" alt="${s.name}" class="avatar-circle avatar-sm" />` 
           : `<div class="avatar-circle avatar-sm" style="display:inline-flex; align-items:center; justify-content:center;">${(s.name || 'S').charAt(0).toUpperCase()}</div>`;
 
+        const isShortage = window.currentShortageIds && window.currentShortageIds.has(s.id);
+        const shortagePill = isShortage 
+          ? `<span class="badge" style="background: #fee2e2; color: #b91c1c; font-size: 0.72rem; margin-left: 0.4rem; padding: 0.15rem 0.4rem; font-weight: 700;">⚠️ &lt;75%</span>` 
+          : '';
+
         return `
-          <tr>
+          <tr ${isShortage ? 'style="background: #fffafa;"' : ''}>
             <td>${idx + 1}</td>
             <td><strong>${s.rollNumber}</strong></td>
             <td>
               <div class="user-badge-cell">
                 ${photoHtml}
                 <span>${s.name}</span>
+                ${shortagePill}
               </div>
             </td>
             <td style="text-align: center;">
@@ -591,7 +846,17 @@
 
         await batch.commit();
 
-        showAlert(`✅ Attendance saved successfully for ${currentStudents.length} students on ${date} at ${formattedTime} (${durationHours} Hour${durationHours > 1 ? 's' : ''})!`, "success");
+        const submittedCount = currentStudents.length;
+
+        // Reset display to normal: hide students roster and shortage panel as requested
+        rosterSection.style.display = "none";
+        currentStudents = [];
+        studentRosterBody.innerHTML = "";
+        const shortageContainer = document.getElementById("shortageStudentsContainer");
+        if (shortageContainer) shortageContainer.innerHTML = "";
+        window.currentShortageIds = new Set();
+
+        showAlert(`✅ Attendance marked & saved successfully for ${submittedCount} students in ${classId} (${subjectId}) on ${date} at ${formattedTime} (${durationHours} Hour${durationHours > 1 ? 's' : ''})!`, "success");
         window.scrollTo({ top: 0, behavior: 'smooth' });
       } catch (err) {
         showAlert("Failed to submit attendance: " + err.message, "danger");
@@ -608,7 +873,10 @@
         showAlert("Session parameters changed. Click 'Load Student Roster' to load students for this session.", "info");
       }
     };
-    classSelect.addEventListener("change", resetRosterOnSelectionChange);
+    classSelect.addEventListener("change", () => {
+      updateAttendanceSubjectDropdown(classSelect.value);
+      resetRosterOnSelectionChange();
+    });
     subjectSelect.addEventListener("change", resetRosterOnSelectionChange);
     dateInput.addEventListener("change", resetRosterOnSelectionChange);
     timeInput.addEventListener("change", resetRosterOnSelectionChange);

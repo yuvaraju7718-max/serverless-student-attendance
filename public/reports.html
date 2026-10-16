@@ -40,10 +40,20 @@
       </div>
     </div>
 
+    <!-- Faculty Notice Banner -->
+    <div id="facultyNoticeBanner" class="alert" style="display: none; margin-bottom: 1.25rem; font-size: 0.9rem; background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; border-left: 4px solid #2563eb;"></div>
+
     <!-- Filter Card -->
     <div class="card">
       <h3 class="card-title">Filter Criteria</h3>
       <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-top: 1rem;">
+        <div class="form-group" id="adminFacultyGroup" style="display: none; margin-bottom: 0;">
+          <label class="form-label" for="reportFaculty">Faculty Member</label>
+          <select id="reportFaculty" class="form-select">
+            <option value="">-- All Teachers / Institute View --</option>
+          </select>
+        </div>
+
         <div class="form-group" style="margin-bottom: 0;">
           <label class="form-label" for="reportClass">Class / Section</label>
           <select id="reportClass" class="form-select">
@@ -53,8 +63,8 @@
 
         <div class="form-group" style="margin-bottom: 0;">
           <label class="form-label" for="reportSubject">Subject</label>
-          <select id="reportSubject" class="form-select">
-            <option value="">-- All Subjects --</option>
+          <select id="reportSubject" class="form-select" disabled>
+            <option value="">-- Choose a Class first --</option>
           </select>
         </div>
 
@@ -164,39 +174,406 @@
 
     const reportClass = document.getElementById("reportClass");
     const reportSubject = document.getElementById("reportSubject");
+    const reportFaculty = document.getElementById("reportFaculty");
+    const adminFacultyGroup = document.getElementById("adminFacultyGroup");
     const generateBtn = document.getElementById("generateReportBtn");
     const summaryGrid = document.getElementById("reportSummaryGrid");
     const reportTableCard = document.getElementById("reportTableCard");
 
-    // Initialize dropdowns
-    async function initReports() {
-      if (!db) return;
+    let currentUser = null;
+    let currentUserRole = "admin";
+    let loggedInTeacherName = "";
+    let loggedInTeacherEmail = "";
+    let loggedInPossibleIds = [];
+
+    // Active query scope (defaults to logged-in user if teacher, or selected teacher if admin)
+    let activeTeacherName = "";
+    let activeTeacherEmail = "";
+    let activeTeacherIds = [];
+    let isTeacherScoped = false;
+
+    // Cache Firestore data
+    let allAssignments = [];
+    let allClassesList = [];
+    let allSubjectsList = [];
+    let allTeachersList = [];
+
+    // Map: classId -> Map of subjectId -> { id, name, code }
+    let teacherClassSubjectMap = new Map();
+    let teacherAssignedPairs = new Set();
+
+    // Check if an assignment document belongs to a specific teacher
+    function isAssignmentForTeacher(asgn, targetIds, targetEmail, targetName) {
+      const aTeacherId = asgn.teacherId || "";
+      const aEmail = (asgn.teacherEmail || "").toLowerCase().trim();
+      const aName = (asgn.teacherName || "").toLowerCase().trim();
+
+      const myEmail = (targetEmail || "").toLowerCase().trim();
+      const myName = (targetName || "").toLowerCase().trim();
+
+      if (aTeacherId && targetIds && targetIds.includes(aTeacherId)) return true;
+      if (aEmail && myEmail && aEmail === myEmail) return true;
+      if (aName && myName) {
+        if (aName === myName || aName.includes(myName) || myName.includes(aName)) return true;
+      }
+      return false;
+    }
+
+    // Helper to check if an attendance record was taken/conducted by this teacher
+    function rowMatchesTeacher(row, targetIds, targetEmail, targetName) {
+      if (!isTeacherScoped) return true;
+
+      const rTeacherId = row.teacherId || "";
+      const rEmail = (row.teacherEmail || "").toLowerCase().trim();
+      const rName = (row.teacherName || "").toLowerCase().trim();
+
+      const myEmail = (targetEmail || "").toLowerCase().trim();
+      const myName = (targetName || "").toLowerCase().trim();
+
+      if (rTeacherId && targetIds && targetIds.includes(rTeacherId)) return true;
+      if (rEmail && myEmail && rEmail === myEmail) return true;
+      if (rName && myName) {
+        if (rName === myName || rName.includes(myName) || myName.includes(rName)) return true;
+      }
+      return false;
+    }
+
+    // Build assigned class->subjects map for a teacher
+    function buildTeacherAssignmentMap(targetIds, targetEmail, targetName) {
+      const map = new Map();
+      const pairs = new Set();
+
+      allAssignments.forEach(asgn => {
+        if (isAssignmentForTeacher(asgn, targetIds, targetEmail, targetName)) {
+          const cId = asgn.classId;
+          const sId = asgn.subjectId;
+          if (!cId || !sId) return;
+
+          if (!map.has(cId)) {
+            map.set(cId, new Map());
+          }
+
+          const foundSub = allSubjectsList.find(s => s.id === sId || s.code === sId);
+          const subName = asgn.subjectName || (foundSub ? foundSub.name : sId);
+          const subCode = (foundSub ? foundSub.code : "") || asgn.subjectCode || "";
+
+          map.get(cId).set(sId, {
+            id: sId,
+            name: subName,
+            code: subCode
+          });
+
+          pairs.add(`${cId}____${sId}`.toLowerCase());
+        }
+      });
+
+      return { map, pairs };
+    }
+
+    // Preload prerequisite collections
+    async function loadPrerequisites() {
+      const [asgnsSnap, classesSnap, subjectsSnap] = await Promise.all([
+        db.collection("assignments").get(),
+        db.collection("classes").get(),
+        db.collection("subjects").get()
+      ]);
+
+      allAssignments = asgnsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+      allClassesList = classesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+      allSubjectsList = subjectsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+      if (currentUserRole === "admin") {
+        try {
+          const teachersSnap = await db.collection("teachers").get();
+          allTeachersList = teachersSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        } catch (e) {
+          console.warn("Error fetching teachers list:", e);
+        }
+      }
+    }
+
+    // Initialize reports page with user session and role-based filtering
+    async function setupReportsPage() {
+      if (!auth || !db) return;
+
+      auth.onAuthStateChanged(async (user) => {
+        if (!user) return;
+        currentUser = user;
+        loggedInTeacherEmail = user.email || "";
+        loggedInPossibleIds = [user.uid];
+
+        try {
+          const userDoc = await db.collection("users").doc(user.uid).get();
+          const uData = userDoc.exists ? userDoc.data() : {};
+          currentUserRole = uData.role || "teacher";
+          loggedInTeacherName = uData.name || user.email.split("@")[0];
+          if (uData.id) loggedInPossibleIds.push(uData.id);
+
+          if (currentUserRole === "teacher") {
+            // Update Navbar link to point to Teacher Dashboard
+            const dashLink = document.getElementById("navDashLink");
+            if (dashLink) {
+              dashLink.href = "teacher-dashboard.html";
+              dashLink.textContent = "Dashboard";
+            }
+
+            // Resolve teacher IDs from teachers collection
+            try {
+              const teacherSnap = await db.collection("teachers").where("email", "==", user.email).get();
+              teacherSnap.forEach(tDoc => {
+                loggedInPossibleIds.push(tDoc.id);
+                const td = tDoc.data();
+                if (td.id) loggedInPossibleIds.push(td.id);
+                if (!loggedInTeacherName && td.name) loggedInTeacherName = td.name;
+              });
+            } catch (tErr) {
+              console.warn("teachers query:", tErr);
+            }
+
+            // Set active scope
+            activeTeacherName = loggedInTeacherName;
+            activeTeacherEmail = loggedInTeacherEmail;
+            activeTeacherIds = loggedInPossibleIds;
+            isTeacherScoped = true;
+
+            // Display Faculty Notice Banner
+            const banner = document.getElementById("facultyNoticeBanner");
+            if (banner) {
+              banner.style.display = "block";
+              banner.innerHTML = `👨‍🏫 <strong>Faculty Report Mode:</strong> Displaying attendance reports exclusively for classes and subjects assigned to and conducted by you (<strong>${loggedInTeacherName.toUpperCase()}</strong>).`;
+            }
+
+            // Update Page Subtitle
+            const subTitleEl = document.querySelector("main.container p");
+            if (subTitleEl) {
+              subTitleEl.textContent = "Attendance summaries for classes and students conducted by your faculty account.";
+            }
+
+            if (adminFacultyGroup) adminFacultyGroup.style.display = "none";
+
+          } else {
+            // Admin role
+            if (adminFacultyGroup) adminFacultyGroup.style.display = "block";
+            isTeacherScoped = false;
+          }
+
+          // Preload collections
+          await loadPrerequisites();
+
+          // Initialize Dropdowns
+          await initDropdownFilters();
+
+          // Check URL query parameters (e.g. from Teacher Dashboard 'View Cumulative Report' link)
+          const params = new URLSearchParams(window.location.search);
+          const urlClassId = params.get("classId");
+          const urlSubjectId = params.get("subjectId");
+          const urlStartDate = params.get("startDate");
+          const urlEndDate = params.get("endDate");
+
+          if (urlClassId) {
+            reportClass.value = urlClassId;
+            onReportClassChange();
+          }
+          if (urlSubjectId) {
+            reportSubject.value = urlSubjectId;
+          }
+          if (urlStartDate) {
+            document.getElementById("reportStartDate").value = urlStartDate;
+          }
+          if (urlEndDate) {
+            document.getElementById("reportEndDate").value = urlEndDate;
+          }
+
+          if (urlClassId) {
+            generateReport();
+          }
+
+        } catch (err) {
+          console.error("Error setting up reports:", err);
+        }
+      });
+    }
+
+    async function initDropdownFilters() {
       try {
-        const [classesSnap, subjectsSnap] = await Promise.all([
-          db.collection("classes").get(),
-          db.collection("subjects").get()
-        ]);
-
-        reportClass.innerHTML = '<option value="">-- Choose Class --</option>' +
-          classesSnap.docs.map(d => {
-            const data = d.data();
-            const label = data.displayName || `${data.name || d.id} (Sem ${data.semester || '-'})`;
-            return `<option value="${d.id}">${label}</option>`;
-          }).join("");
-
-        reportSubject.innerHTML = '<option value="">-- All Subjects --</option>' +
-          subjectsSnap.docs.map(d => `<option value="${d.id}">${d.data().code || d.id} - ${d.data().name || ""}</option>`).join("");
-
         // Set default dates: from 30 days ago to today
         const today = new Date();
         const thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(today.getDate() - 30);
-
         document.getElementById("reportEndDate").value = today.toISOString().split("T")[0];
         document.getElementById("reportStartDate").value = thirtyDaysAgo.toISOString().split("T")[0];
 
+        if (currentUserRole === "teacher") {
+          isTeacherScoped = true;
+          const result = buildTeacherAssignmentMap(activeTeacherIds, activeTeacherEmail, activeTeacherName);
+          teacherClassSubjectMap = result.map;
+          teacherAssignedPairs = result.pairs;
+
+          const assignedClasses = Array.from(teacherClassSubjectMap.keys()).sort();
+
+          if (assignedClasses.length === 0) {
+            // Fallback: check if teacher has attendance records
+            const attendanceSnap = await db.collection("attendance").get();
+            const conductedClasses = new Set();
+            attendanceSnap.forEach(d => {
+              const row = d.data();
+              if (rowMatchesTeacher(row, activeTeacherIds, activeTeacherEmail, activeTeacherName)) {
+                if (row.classId) conductedClasses.add(row.classId);
+              }
+            });
+
+            if (conductedClasses.size === 0) {
+              reportClass.innerHTML = '<option value="">No classes assigned to or conducted by your account</option>';
+              reportSubject.innerHTML = '<option value="">-- No Subjects --</option>';
+              reportSubject.disabled = true;
+              return;
+            }
+
+            reportClass.innerHTML = '<option value="">-- Choose Class (Conducted by You) --</option>' +
+              Array.from(conductedClasses).sort().map(cId => `<option value="${cId}">${cId}</option>`).join("");
+          } else {
+            reportClass.innerHTML = '<option value="">-- Choose Assigned Class --</option>' +
+              assignedClasses.map(cId => {
+                const cObj = allClassesList.find(c => c.id === cId);
+                const label = cObj && cObj.displayName ? cObj.displayName : (cObj ? `${cObj.name || cId} (Sem ${cObj.semester || '-'})` : cId);
+                return `<option value="${cId}">${label}</option>`;
+              }).join("");
+          }
+
+          reportSubject.innerHTML = '<option value="">-- Choose a Class first --</option>';
+          reportSubject.disabled = true;
+
+        } else {
+          // Admin role: Populate faculty dropdown
+          if (reportFaculty && allTeachersList.length > 0) {
+            reportFaculty.innerHTML = '<option value="">-- All Teachers / Institute View --</option>' +
+              allTeachersList.map(t => `<option value="${t.id}">${t.name} (${t.department || 'Faculty'})</option>`).join("");
+          }
+
+          populateAdminClassAndSubjects();
+        }
+
       } catch (err) {
         console.error("Error loading filters:", err);
+      }
+    }
+
+    function populateAdminClassAndSubjects() {
+      const selectedFacultyId = reportFaculty ? reportFaculty.value : "";
+      const banner = document.getElementById("facultyNoticeBanner");
+
+      if (selectedFacultyId) {
+        const teacherObj = allTeachersList.find(t => t.id === selectedFacultyId);
+        const tName = teacherObj ? teacherObj.name : "";
+        const tEmail = teacherObj ? teacherObj.email : "";
+        const tIds = [selectedFacultyId];
+        if (teacherObj && teacherObj.id) tIds.push(teacherObj.id);
+
+        activeTeacherName = tName;
+        activeTeacherEmail = tEmail;
+        activeTeacherIds = tIds;
+        isTeacherScoped = true;
+
+        const result = buildTeacherAssignmentMap(tIds, tEmail, tName);
+        teacherClassSubjectMap = result.map;
+        teacherAssignedPairs = result.pairs;
+
+        if (banner) {
+          banner.style.display = "block";
+          banner.innerHTML = `👨‍🏫 <strong>Admin Faculty Filter:</strong> Showing assigned classes and subjects for faculty <strong>${tName.toUpperCase()}</strong>.`;
+        }
+
+        const assignedClasses = Array.from(teacherClassSubjectMap.keys()).sort();
+        if (assignedClasses.length === 0) {
+          reportClass.innerHTML = `<option value="">No classes assigned to ${tName}</option>`;
+          reportSubject.innerHTML = '<option value="">-- No Assigned Subjects --</option>';
+          reportSubject.disabled = true;
+          return;
+        }
+
+        reportClass.innerHTML = '<option value="">-- Choose Assigned Class --</option>' +
+          assignedClasses.map(cId => {
+            const cObj = allClassesList.find(c => c.id === cId);
+            const label = cObj && cObj.displayName ? cObj.displayName : cId;
+            return `<option value="${cId}">${label}</option>`;
+          }).join("");
+
+        reportSubject.innerHTML = '<option value="">-- Choose a Class first --</option>';
+        reportSubject.disabled = true;
+
+      } else {
+        // All Teachers / Institute View
+        isTeacherScoped = false;
+        activeTeacherName = "";
+        activeTeacherEmail = "";
+        activeTeacherIds = [];
+        teacherClassSubjectMap = new Map();
+        teacherAssignedPairs = new Set();
+
+        if (banner) banner.style.display = "none";
+
+        reportClass.innerHTML = '<option value="">-- Choose Class --</option>' +
+          allClassesList.map(c => {
+            const label = c.displayName || `${c.name || c.id} (Sem ${c.semester || '-'})`;
+            return `<option value="${c.id}">${label}</option>`;
+          }).join("");
+
+        reportSubject.innerHTML = '<option value="">-- Choose a Class first --</option>';
+        reportSubject.disabled = true;
+      }
+    }
+
+    // Dynamic Class to Subject filtering: strictly show ONLY subjects assigned for this class
+    function onReportClassChange() {
+      const selectedClassId = reportClass.value;
+      if (!selectedClassId) {
+        reportSubject.innerHTML = '<option value="">-- Choose a Class first --</option>';
+        reportSubject.disabled = true;
+        return;
+      }
+
+      reportSubject.disabled = false;
+
+      if (isTeacherScoped) {
+        // STRICT: ONLY show subjects assigned to this teacher for that class!
+        const subjectsMap = teacherClassSubjectMap.get(selectedClassId);
+        const subjects = subjectsMap ? Array.from(subjectsMap.values()) : [];
+
+        if (subjects.length === 0) {
+          reportSubject.innerHTML = '<option value="">-- No subjects assigned to this teacher for this class --</option>';
+        } else if (subjects.length === 1) {
+          const sub = subjects[0];
+          const label = sub.code && sub.name && !sub.name.includes(sub.code)
+            ? `${sub.code} - ${sub.name}`
+            : (sub.name || sub.id);
+          reportSubject.innerHTML = `<option value="${sub.id}" selected>${label}</option>`;
+        } else {
+          const optionsHtml = subjects.map(sub => {
+            const label = sub.code && sub.name && !sub.name.includes(sub.code)
+              ? `${sub.code} - ${sub.name}`
+              : (sub.name || sub.id);
+            return `<option value="${sub.id}">${label}</option>`;
+          }).join("");
+
+          reportSubject.innerHTML = `<option value="">-- All Assigned Subjects (${subjects.length}) --</option>` + optionsHtml;
+        }
+
+      } else {
+        // Admin Institution view: Filter subjects for this class from assignments or subjects list
+        const classAsgns = allAssignments.filter(a => a.classId === selectedClassId);
+        const subjectIdsInClass = new Set(classAsgns.map(a => a.subjectId));
+
+        let availableSubs = allSubjectsList.filter(s => subjectIdsInClass.has(s.id) || subjectIdsInClass.has(s.code));
+        if (availableSubs.length === 0) {
+          availableSubs = allSubjectsList;
+        }
+
+        const optionsHtml = availableSubs.map(s => {
+          const label = s.code ? `${s.code} - ${s.name || s.id}` : (s.name || s.id);
+          return `<option value="${s.id}">${label}</option>`;
+        }).join("");
+
+        reportSubject.innerHTML = '<option value="">-- All Subjects --</option>' + optionsHtml;
       }
     }
 
@@ -215,11 +592,11 @@
       generateBtn.textContent = "Calculating...";
 
       try {
-        // Fetch students in this class
+        // 1. Fetch students in this class
         const studentsSnap = await db.collection("students").where("classId", "==", classId).get();
         const students = studentsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
 
-        // Query attendance records for this class
+        // 2. Query attendance records for this class
         let query = db.collection("attendance").where("classId", "==", classId);
         if (subjectId) {
           query = query.where("subjectId", "==", subjectId);
@@ -227,17 +604,50 @@
 
         const attendanceSnap = await query.get();
 
-        // Filter by date range in memory
+        // Build set of allowed assigned subject IDs for this class if teacher scoped
+        const allowedSubjectIds = new Set();
+        if (isTeacherScoped) {
+          const subsMap = teacherClassSubjectMap.get(classId);
+          if (subsMap) {
+            subsMap.forEach((sub, sId) => {
+              allowedSubjectIds.add(sId.toLowerCase());
+              if (sub.id) allowedSubjectIds.add(sub.id.toLowerCase());
+              if (sub.code) allowedSubjectIds.add(sub.code.toLowerCase());
+              if (sub.name) allowedSubjectIds.add(sub.name.toLowerCase());
+            });
+          }
+        }
+
+        // 3. Filter attendance records strictly:
+        // - Date range
+        // - If teacher scoped: strictly only sessions conducted by this teacher
+        // - If teacher scoped: strictly only subjects assigned to this teacher for this class
         const records = [];
         attendanceSnap.forEach(d => {
           const row = d.data();
           const rDate = row.date || "";
-          if ((!startDate || rDate >= startDate) && (!endDate || rDate <= endDate)) {
-            records.push(row);
+          const dateMatch = (!startDate || rDate >= startDate) && (!endDate || rDate <= endDate);
+          if (!dateMatch) return;
+
+          if (isTeacherScoped) {
+            // Check teacher conducted match
+            if (!rowMatchesTeacher(row, activeTeacherIds, activeTeacherEmail, activeTeacherName)) {
+              return;
+            }
+
+            // Check assigned subject for this class
+            if (allowedSubjectIds.size > 0) {
+              const rSub = (row.subjectId || "").toLowerCase();
+              if (!allowedSubjectIds.has(rSub)) {
+                return; // SKIP unassigned subject!
+              }
+            }
           }
+
+          records.push(row);
         });
 
-        // Group attendance records into distinct class sessions
+        // 4. Group attendance records into distinct class sessions
         const sessionsMap = {};
         records.forEach(r => {
           const sessionTime = r.time || (r.createdAt ? new Date(r.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "General");
@@ -252,7 +662,7 @@
               hours: sessionHours,
               classId: r.classId || classId,
               subjectId: r.subjectId || subjectId || "-",
-              teacher: (r.teacherName || r.teacherEmail || "Faculty").toUpperCase(),
+              teacher: (r.teacherName || r.teacherEmail || activeTeacherName || "Faculty").toUpperCase(),
               present: 0,
               absent: 0,
               total: 0
@@ -284,7 +694,10 @@
         document.getElementById("sessionLogCountBadge").textContent = `${sessionsList.length} Session${sessionsList.length !== 1 ? 's' : ''}`;
 
         if (!sessionsList.length) {
-          sessionHistoryBody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding:1.5rem; color:var(--text-muted);">No attendance sessions found in the selected date range.</td></tr>`;
+          const emptyMsg = isTeacherScoped 
+            ? `No attendance sessions found for assigned subjects conducted by ${activeTeacherName || 'your account'} in the selected date range.`
+            : "No attendance sessions found in the selected date range.";
+          sessionHistoryBody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding:1.5rem; color:var(--text-muted);">${emptyMsg}</td></tr>`;
         } else {
           sessionHistoryBody.innerHTML = sessionsList.map(s => {
             const turnoutPct = s.total > 0 ? Math.round((s.present / s.total) * 100) : 0;
@@ -305,7 +718,7 @@
         }
         sessionHistoryCard.style.display = "block";
 
-        // Tally per student with hours
+        // Tally per student strictly for records conducted by this teacher
         const studentStats = {};
         students.forEach(s => {
           studentStats[s.id] = { student: s, totalHours: 0, presentHours: 0, absentHours: 0 };
@@ -344,13 +757,24 @@
         const avgPct = grandTotalHours > 0 ? Math.round((grandPresentHours / grandTotalHours) * 100) : 0;
         document.getElementById("avgAttendanceVal").textContent = `${avgPct}%`;
 
+        // Update card title
+        const reportTitleEl = document.getElementById("reportTitle");
+        if (reportTitleEl) {
+          reportTitleEl.textContent = isTeacherScoped 
+            ? `Student Attendance Summary (Conducted by ${activeTeacherName || 'Faculty'} for Assigned Subjects)`
+            : "Student Cumulative Attendance Summary";
+        }
+
         // Render Student Summary Table
         const sortedStudents = Object.values(studentStats);
         sortedStudents.sort((a, b) => (a.student.rollNumber || "").localeCompare(b.student.rollNumber || "", undefined, { numeric: true }));
 
         const tbody = document.getElementById("reportTableBody");
-        if (!sortedStudents.length) {
-          tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:1.5rem;">No student records found.</td></tr>`;
+        if (!sortedStudents.length || totalHoursTaught === 0) {
+          const emptyText = isTeacherScoped
+            ? `No student attendance records found for assigned subjects conducted by ${activeTeacherName || 'your account'}.`
+            : "No student records found.";
+          tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:1.5rem; color:var(--text-muted);">${emptyText}</td></tr>`;
         } else {
           tbody.innerHTML = sortedStudents.map(item => {
             const pct = item.totalHours > 0 ? Math.round((item.presentHours / item.totalHours) * 100) : 0;
@@ -376,12 +800,12 @@
                 <td style="text-align: center;">
                   <strong>${pct}%</strong>
                   <div class="progress-bar-container">
-                    <div class="progress-bar" style="width: ${pct}%; background: ${isEligible ? 'var(--success)' : 'var(--danger)'};"></div>
+                    <div class="progress-bar" style="width: ${pct}%; background: ${item.totalHours === 0 ? '#94a3b8' : isEligible ? 'var(--success)' : 'var(--danger)'};"></div>
                   </div>
                 </td>
                 <td>
-                  <span class="badge ${isEligible ? 'badge-present' : 'badge-absent'}">
-                    ${isEligible ? 'Eligible (>=75%)' : 'Shortage (<75%)'}
+                  <span class="badge ${item.totalHours === 0 ? '' : isEligible ? 'badge-present' : 'badge-absent'}">
+                    ${item.totalHours === 0 ? 'No Classes' : isEligible ? 'Eligible (>=75%)' : 'Shortage (<75%)'}
                   </span>
                 </td>
               </tr>
@@ -400,8 +824,14 @@
       }
     }
 
+    reportClass.addEventListener("change", onReportClassChange);
+    if (reportFaculty) {
+      reportFaculty.addEventListener("change", () => {
+        populateAdminClassAndSubjects();
+      });
+    }
     generateBtn.addEventListener("click", generateReport);
-    window.addEventListener("DOMContentLoaded", initReports);
+    window.addEventListener("DOMContentLoaded", setupReportsPage);
   </script>
 </body>
 </html>

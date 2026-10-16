@@ -221,12 +221,17 @@
           const allAsgnsSnap = await db.collection("assignments").get();
           const myAssignments = [];
           const myClassIds = new Set();
+          const myClassSubjectPairs = new Set();
 
           allAsgnsSnap.forEach(doc => {
             const data = doc.data();
             const matchesId = possibleTeacherIds.includes(data.teacherId);
-            const matchesEmail = data.teacherEmail && data.teacherEmail.toLowerCase() === user.email.toLowerCase();
-            const matchesName = data.teacherName && teacherName && data.teacherName.toLowerCase() === teacherName.toLowerCase();
+            const matchesEmail = data.teacherEmail && user.email && data.teacherEmail.toLowerCase() === user.email.toLowerCase();
+            const matchesName = data.teacherName && teacherName && (
+              data.teacherName.toLowerCase() === teacherName.toLowerCase() ||
+              data.teacherName.toLowerCase().includes(teacherName.toLowerCase()) ||
+              teacherName.toLowerCase().includes(data.teacherName.toLowerCase())
+            );
 
             if (matchesId || matchesEmail || matchesName) {
               const classStr = data.classId || "";
@@ -236,15 +241,24 @@
                 if (isIseItem(classStr) || isIseItem(subStr)) {
                   myAssignments.push({ id: doc.id, ...data });
                   if (data.classId) myClassIds.add(data.classId);
+                  if (data.classId && data.subjectId) {
+                    myClassSubjectPairs.add(`${data.classId}____${data.subjectId}`.toLowerCase());
+                  }
                 }
               } else if (teacherBranch === "CSE") {
                 if (isCseItem(classStr) || isCseItem(subStr)) {
                   myAssignments.push({ id: doc.id, ...data });
                   if (data.classId) myClassIds.add(data.classId);
+                  if (data.classId && data.subjectId) {
+                    myClassSubjectPairs.add(`${data.classId}____${data.subjectId}`.toLowerCase());
+                  }
                 }
               } else {
                 myAssignments.push({ id: doc.id, ...data });
                 if (data.classId) myClassIds.add(data.classId);
+                if (data.classId && data.subjectId) {
+                  myClassSubjectPairs.add(`${data.classId}____${data.subjectId}`.toLowerCase());
+                }
               }
             }
           });
@@ -290,10 +304,24 @@
             attendanceSnap.forEach(doc => {
               const row = doc.data();
               const matchesTeacher = possibleTeacherIds.includes(row.teacherId) ||
-                                     (row.teacherEmail && row.teacherEmail.toLowerCase() === user.email.toLowerCase());
-              const matchesClass = myClassIds.has(row.classId);
+                                     (row.teacherEmail && user.email && row.teacherEmail.toLowerCase() === user.email.toLowerCase()) ||
+                                     (row.teacherName && teacherName && (
+                                       row.teacherName.toLowerCase() === teacherName.toLowerCase() ||
+                                       row.teacherName.toLowerCase().includes(teacherName.toLowerCase()) ||
+                                       teacherName.toLowerCase().includes(row.teacherName.toLowerCase())
+                                     )) ||
+                                     (row.teacherId && userData.id && row.teacherId === userData.id);
 
-              if (matchesTeacher || matchesClass) {
+              // Strictly restrict to sessions taken/conducted by THIS teacher
+              if (matchesTeacher) {
+                // If this teacher has assignments, strictly only show subjects assigned to this teacher for that class!
+                if (myClassSubjectPairs.size > 0) {
+                  const pairKey = `${row.classId}____${row.subjectId}`.toLowerCase();
+                  if (!myClassSubjectPairs.has(pairKey)) {
+                    return; // Skip session: subject is not assigned to this teacher for this class
+                  }
+                }
+
                 const classStr = row.classId || "";
                 const subStr = row.subjectId || "";
 
@@ -310,6 +338,7 @@
                     hours: Number(row.hours) || 1,
                     classId: row.classId || "-",
                     subjectId: row.subjectId || "-",
+                    teacherName: row.teacherName || teacherName || "Faculty",
                     students: []
                   };
                 }
@@ -336,7 +365,7 @@
           });
 
           if (sessionList.length === 0) {
-            historyTable.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">No attendance sessions recorded yet. Click 'Mark Attendance Now' above to take attendance.</td></tr>`;
+            historyTable.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">No attendance sessions conducted from this account yet. Click 'Mark Attendance Now' above to take attendance.</td></tr>`;
             return;
           }
 
@@ -376,7 +405,7 @@
 
       const modal = document.getElementById("sessionReportModal");
       document.getElementById("modalSessionSubtitle").textContent = 
-        `Class: ${s.classId} • Subject: ${s.subjectId} • Date: ${s.date} • Time: ${s.time || 'N/A'} • Duration: ${s.hours} hr(s)`;
+        `Class: ${s.classId} • Subject: ${s.subjectId} • Date: ${s.date} • Time: ${s.time || 'N/A'} • Duration: ${s.hours} hr(s) • Conducted By: ${s.teacherName || 'You'}`;
 
       const total = s.students.length;
       const present = s.students.filter(x => x.status === "Present").length;
