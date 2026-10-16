@@ -6,6 +6,186 @@
   <title>Student Portal | Serverless Attendance</title>
   <link rel="stylesheet" href="css/style.css">
   
+  <style>
+    /* Interactive 3D Subject Spheres */
+    .spheres-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1.5rem;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .sphere-wrapper {
+      perspective: 1000px;
+      width: 140px;
+      height: 140px;
+      position: relative;
+      cursor: pointer;
+    }
+
+    .sphere-orb {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      position: relative;
+      transform-style: preserve-3d;
+      transition: transform 0.65s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease;
+      user-select: none;
+    }
+
+    .sphere-wrapper:hover .sphere-orb {
+      transform: translateY(-6px) scale(1.04);
+    }
+
+    .sphere-wrapper.flipped .sphere-orb {
+      transform: rotateY(180deg);
+    }
+
+    .sphere-wrapper.flipped:hover .sphere-orb {
+      transform: rotateY(180deg) translateY(-6px) scale(1.04);
+    }
+
+    .sphere-face {
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 1rem;
+      box-sizing: border-box;
+      box-shadow: 
+        0 14px 28px -5px rgba(0, 0, 0, 0.35),
+        0 8px 12px -3px rgba(0, 0, 0, 0.2),
+        inset -10px -10px 22px rgba(0, 0, 0, 0.4),
+        inset 8px 8px 16px rgba(255, 255, 255, 0.4);
+      overflow: hidden;
+    }
+
+    /* 3D Gloss Highlight */
+    .sphere-face::before {
+      content: "";
+      position: absolute;
+      top: 6%;
+      left: 18%;
+      width: 55%;
+      height: 32%;
+      border-radius: 50%;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.7) 0%, rgba(255, 255, 255, 0) 100%);
+      pointer-events: none;
+      filter: blur(1px);
+    }
+
+    /* 3D Bottom Depth Shadow */
+    .sphere-face::after {
+      content: "";
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 42%;
+      border-radius: 0 0 50% 50%;
+      background: radial-gradient(ellipse at 50% 100%, rgba(0, 0, 0, 0.5) 0%, rgba(0, 0, 0, 0) 75%);
+      pointer-events: none;
+    }
+
+    /* Front Face: ONLY the Subject Name */
+    .sphere-front {
+      z-index: 2;
+      transform: rotateY(0deg);
+      color: #ffffff;
+    }
+
+    /* Vibrant front color gradients */
+    .sphere-theme-0 { background: radial-gradient(circle at 35% 30%, #60a5fa 0%, #2563eb 55%, #1e3a8a 100%); }
+    .sphere-theme-1 { background: radial-gradient(circle at 35% 30%, #a78bfa 0%, #7c3aed 55%, #4c1d95 100%); }
+    .sphere-theme-2 { background: radial-gradient(circle at 35% 30%, #38bdf8 0%, #0284c7 55%, #0c4a6e 100%); }
+    .sphere-theme-3 { background: radial-gradient(circle at 35% 30%, #818cf8 0%, #4f46e5 55%, #312e81 100%); }
+    .sphere-theme-4 { background: radial-gradient(circle at 35% 30%, #2dd4bf 0%, #0d9488 55%, #134e4a 100%); }
+    .sphere-theme-5 { background: radial-gradient(circle at 35% 30%, #f472b6 0%, #db2777 55%, #831843 100%); }
+
+    .sphere-subject-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      line-height: 1.25;
+      color: #ffffff;
+      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
+      word-break: break-word;
+      max-width: 110px;
+      position: relative;
+      z-index: 3;
+    }
+
+    .sphere-tap-hint {
+      font-size: 0.62rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: rgba(255, 255, 255, 0.85);
+      margin-top: 0.35rem;
+      font-weight: 600;
+      position: relative;
+      z-index: 3;
+    }
+
+    /* Back Face: Shows Attendance Percentage of that subject */
+    .sphere-back {
+      transform: rotateY(180deg);
+      color: #ffffff;
+      z-index: 1;
+    }
+
+    .sphere-back-eligible {
+      background: radial-gradient(circle at 35% 30%, #34d399 0%, #059669 55%, #064e3b 100%);
+    }
+
+    .sphere-back-shortage {
+      background: radial-gradient(circle at 35% 30%, #f87171 0%, #dc2626 55%, #7f1d1d 100%);
+    }
+
+    .sphere-back-empty {
+      background: radial-gradient(circle at 35% 30%, #94a3b8 0%, #475569 55%, #1e293b 100%);
+    }
+
+    .sphere-pct-value {
+      font-size: 1.85rem;
+      font-weight: 800;
+      line-height: 1;
+      color: #ffffff;
+      text-shadow: 0 2px 5px rgba(0, 0, 0, 0.6);
+      position: relative;
+      z-index: 3;
+    }
+
+    .sphere-hours-detail {
+      font-size: 0.72rem;
+      color: rgba(255, 255, 255, 0.95);
+      font-weight: 600;
+      margin-top: 0.25rem;
+      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+      position: relative;
+      z-index: 3;
+    }
+
+    .sphere-eligibility-badge {
+      font-size: 0.62rem;
+      font-weight: 700;
+      padding: 0.15rem 0.45rem;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.25);
+      backdrop-filter: blur(4px);
+      margin-top: 0.3rem;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      position: relative;
+      z-index: 3;
+    }
+  </style>
+  
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
@@ -52,56 +232,49 @@
     <!-- 2-Column Hero: Left Side (Overall Attendance Gauge & Advisor) | Right Side (Subject Shortage Watchlist) -->
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 1.25rem; margin-bottom: 1.5rem;">
       
-      <!-- LEFT SIDE: Overall Attendance Radial Progress & Smart Advisor -->
-      <div class="card" style="margin-bottom: 0; display: flex; flex-direction: column; justify-content: space-between; border-top: 4px solid var(--primary);">
-        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem;">
+      <!-- LEFT SIDE: 3D Subject Spheres (Semester-Based Classification & Per-Subject Attendance %) -->
+      <div class="card" style="margin-bottom: 0; display: flex; flex-direction: column; justify-content: space-between; border-top: 4px solid var(--primary); min-height: 420px;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem; flex-wrap: wrap; gap: 0.5rem;">
           <div>
             <h3 class="card-title" style="margin-bottom: 0.2rem; display: flex; align-items: center; gap: 0.5rem;">
-              🎯 Overall Attendance Status
+              🔮 Semester <span id="sphereSemesterTitle">5</span> Subject Spheres
             </h3>
-            <p class="card-subtitle" style="margin-bottom: 0;">Cumulative percentage across all enrolled subjects</p>
+            <p class="card-subtitle" style="margin-bottom: 0;">Interactive 3D orbs &bull; Tap any sphere to reveal subject attendance %</p>
           </div>
-          <span id="overallStatusBadge" class="badge badge-present" style="font-size: 0.8rem;">Calculating...</span>
-        </div>
-
-        <div style="display: flex; align-items: center; justify-content: space-around; flex-wrap: wrap; gap: 1.25rem; padding: 0.5rem 0;">
-          <!-- SVG Radial Gauge Ring -->
-          <div style="position: relative; width: 140px; height: 140px; display: flex; align-items: center; justify-content: center;">
-            <svg viewBox="0 0 100 100" width="140" height="140" style="transform: rotate(-90deg);">
-              <!-- Background Ring -->
-              <circle cx="50" cy="50" r="42" stroke="#e2e8f0" stroke-width="8" fill="none" />
-              <!-- Animated Progress Ring -->
-              <circle id="radialProgressBar" cx="50" cy="50" r="42" stroke="var(--primary)" stroke-width="8" 
-                      stroke-dasharray="264" stroke-dashoffset="264" stroke-linecap="round" fill="none" 
-                      style="transition: stroke-dashoffset 1s cubic-bezier(0.4, 0, 0.2, 1), stroke 0.3s ease;" />
-            </svg>
-            <div style="position: absolute; text-align: center;">
-              <span id="overallPercentage" style="font-size: 1.85rem; font-weight: 800; color: var(--text); line-height: 1;">0%</span>
-              <div style="font-size: 0.7rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; margin-top: 0.25rem;">Total Rate</div>
-            </div>
-          </div>
-
-          <!-- Stat Metric Pills -->
-          <div style="display: flex; flex-direction: column; gap: 0.5rem; min-width: 170px;">
-            <div style="background: #f8fafc; border: 1px solid var(--border); border-radius: 6px; padding: 0.4rem 0.75rem; display: flex; justify-content: space-between; align-items: center;">
-              <span style="font-size: 0.8rem; color: var(--text-muted);">Total Hours:</span>
-              <strong id="statTotalHours" style="font-size: 0.95rem;">0 hrs</strong>
-            </div>
-            <div style="background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 6px; padding: 0.4rem 0.75rem; display: flex; justify-content: space-between; align-items: center;">
-              <span style="font-size: 0.8rem; color: #065f46;">Attended:</span>
-              <strong id="statPresentHours" style="color: var(--success); font-size: 0.95rem;">0 hrs</strong>
-            </div>
-            <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 6px; padding: 0.4rem 0.75rem; display: flex; justify-content: space-between; align-items: center;">
-              <span style="font-size: 0.8rem; color: #991b1b;">Missed:</span>
-              <strong id="statAbsentHours" style="color: var(--danger); font-size: 0.95rem;">0 hrs</strong>
-            </div>
+          <div style="display: flex; gap: 0.5rem; align-items: center;">
+            <button id="toggleAllSpheresBtn" type="button" class="btn btn-secondary btn-sm" onclick="toggleAllSpheres()" style="font-size: 0.75rem; padding: 0.35rem 0.7rem; font-weight: 600;">
+              🔄 Reveal All %
+            </button>
           </div>
         </div>
 
-        <!-- Smart Academic Advice Box -->
-        <div id="smartAdvisorBox" style="margin-top: 0.85rem; padding: 0.65rem 0.9rem; border-radius: 6px; background: #eff6ff; border: 1px solid #bfdbfe; font-size: 0.825rem; color: #1e40af; display: flex; align-items: center; gap: 0.5rem;">
-          <span style="font-size: 1.2rem;">💡</span>
-          <span id="smartAdvisorText">Attendance calculation in progress...</span>
+        <!-- Spheres Container -->
+        <div id="subjectSpheresContainer" class="spheres-container" style="flex: 1; display: flex; flex-wrap: wrap; gap: 1.5rem; justify-content: center; align-items: center; padding: 1.25rem 0.5rem; min-height: 240px;">
+          <div style="text-align: center; color: var(--text-muted); font-size: 0.9rem; padding: 2rem;">
+            Loading Semester Subject Spheres...
+          </div>
+        </div>
+
+        <!-- Sphere Color Spectrum Legend -->
+        <div style="margin-top: 0.75rem; font-size: 0.75rem; color: var(--text-muted); display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border); padding-top: 0.6rem; flex-wrap: wrap; gap: 0.75rem;">
+          <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
+            <!-- Green Spectrum -->
+            <span style="display: inline-flex; align-items: center; gap: 0.4rem;">
+              <span style="width: 38px; height: 11px; border-radius: 4px; background: linear-gradient(90deg, #86efac 0%, #15803d 100%); display: inline-block; border: 1px solid rgba(0,0,0,0.15);"></span>
+              <span><strong>&gt;75% &rarr; 100%:</strong> Light &rarr; Dark Green</span>
+            </span>
+            <!-- Red Spectrum -->
+            <span style="display: inline-flex; align-items: center; gap: 0.4rem;">
+              <span style="width: 38px; height: 11px; border-radius: 4px; background: linear-gradient(90deg, #fca5a5 0%, #7f1d1d 100%); display: inline-block; border: 1px solid rgba(0,0,0,0.15);"></span>
+              <span><strong>75% &rarr; 0%:</strong> Light &rarr; Dark Red</span>
+            </span>
+            <!-- Slate / Neutral -->
+            <span style="display: inline-flex; align-items: center; gap: 0.35rem;">
+              <span style="width: 11px; height: 11px; border-radius: 50%; background: #64748b; display: inline-block;"></span>
+              <span>0 Classes</span>
+            </span>
+          </div>
+          <span style="font-weight: 600; color: var(--primary);">💡 Tap sphere to reveal % &bull; Tap again to return</span>
         </div>
       </div>
 
@@ -310,137 +483,231 @@
 
           const logsBody = document.getElementById("attendanceLogsBody");
           const subjectBody = document.getElementById("subjectAttendanceBody");
-
-          const radialBar = document.getElementById("radialProgressBar");
-          const circumference = 264; // 2 * PI * 42
-
-          if (recordsMap.size === 0) {
-            logsBody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">No attendance records found yet for Roll No: ${finalRoll || 'N/A'}. When a teacher marks attendance for your class, it will appear here.</td></tr>`;
-            subjectBody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">No subject data available.</td></tr>`;
-            document.getElementById("overallPercentage").textContent = "0%";
-            document.getElementById("overallStatusBadge").textContent = "No Records";
-            document.getElementById("overallStatusBadge").className = "badge";
-            document.getElementById("smartAdvisorText").textContent = "No attendance sessions recorded yet.";
-            document.getElementById("shortageSubjectList").innerHTML = `
-              <div style="text-align: center; color: var(--text-muted); padding: 1.5rem; font-size: 0.85rem;">
-                No attendance sessions recorded yet.
-              </div>
-            `;
-            return;
-          }
-
-          // Compute subject-wise statistics using session hours
-          const statsBySubject = {};
-          let totalHoursOverall = 0;
-          let totalPresentHoursOverall = 0;
-
-          const records = Array.from(recordsMap.values());
-          records.forEach(data => {
-            const subj = data.subjectId || "General";
-            const sHours = Number(data.hours) || 1;
-            if (!statsBySubject[subj]) {
-              statsBySubject[subj] = { totalHours: 0, presentHours: 0, absentHours: 0 };
-            }
-
-            statsBySubject[subj].totalHours += sHours;
-            totalHoursOverall += sHours;
-
-            if (data.status === "Present") {
-              statsBySubject[subj].presentHours += sHours;
-              totalPresentHoursOverall += sHours;
-            } else {
-              statsBySubject[subj].absentHours += sHours;
-            }
-          });
-
-          // Sort records descending by date and time
-          records.sort((a, b) => {
-            const dateCmp = (b.date || "").localeCompare(a.date || "");
-            if (dateCmp !== 0) return dateCmp;
-            return (b.rawTime || b.time || "").localeCompare(a.rawTime || a.time || "");
-          });
-
-          // Compute Overall Attendance Metrics
-          const overallPct = totalHoursOverall > 0 ? Math.round((totalPresentHoursOverall / totalHoursOverall) * 100) : 0;
-          const isOverallEligible = overallPct >= 75;
-
-          // Animate and style Radial Gauge Ring
-          const offset = Math.max(0, circumference - (overallPct / 100) * circumference);
-          radialBar.style.strokeDashoffset = offset;
-
-          let gaugeColor = "var(--success)"; // Emerald Green
-          if (overallPct < 65) {
-            gaugeColor = "var(--danger)"; // Red
-          } else if (overallPct < 75) {
-            gaugeColor = "#f59e0b"; // Amber Warning
-          }
-          radialBar.style.stroke = gaugeColor;
-
-          const overallPctEl = document.getElementById("overallPercentage");
-          overallPctEl.textContent = `${overallPct}%`;
-          overallPctEl.style.color = gaugeColor;
-
-          document.getElementById("statTotalHours").textContent = `${totalHoursOverall} hrs`;
-          document.getElementById("statPresentHours").textContent = `${totalPresentHoursOverall} hrs`;
-          document.getElementById("statAbsentHours").textContent = `${totalHoursOverall - totalPresentHoursOverall} hrs`;
-
-          const statusBadge = document.getElementById("overallStatusBadge");
-          if (isOverallEligible) {
-            statusBadge.className = "badge badge-present";
-            statusBadge.textContent = "✅ Eligible (>=75%)";
-          } else {
-            statusBadge.className = "badge badge-absent";
-            statusBadge.textContent = "⚠️ Shortage (<75%)";
-          }
-
-          // Smart Advisor Calculation
-          const advisorBox = document.getElementById("smartAdvisorBox");
-          const advisorText = document.getElementById("smartAdvisorText");
-
-          if (isOverallEligible) {
-            const buffer = Math.floor((totalPresentHoursOverall - (0.75 * totalHoursOverall)) / 0.75);
-            advisorBox.style.background = "#ecfdf5";
-            advisorBox.style.borderColor = "#a7f3d0";
-            advisorBox.style.color = "#065f46";
-            if (buffer > 0) {
-              advisorText.innerHTML = `Safe Zone! You can safely miss up to <strong>${buffer} class hour${buffer > 1 ? 's' : ''}</strong> and still maintain the required 75% attendance.`;
-            } else {
-              advisorText.innerHTML = `Borderline Safe! Your attendance is at <strong>${overallPct}%</strong>. Attend your next upcoming classes to build a safe buffer.`;
-            }
-          } else {
-            const needed = Math.ceil(((0.75 * totalHoursOverall) - totalPresentHoursOverall) / 0.25);
-            advisorBox.style.background = "#fef2f2";
-            advisorBox.style.borderColor = "#fecaca";
-            advisorBox.style.color = "#991b1b";
-            advisorText.innerHTML = `Shortage Alert! You must attend the next <strong>${needed} class hour${needed > 1 ? 's' : ''}</strong> without missing any to restore 75% eligibility.`;
-          }
-
-          // Identify and populate Subjects with Attendance Shortage (< 75%)
-          const shortageList = [];
-          Object.keys(statsBySubject).forEach(subj => {
-            const item = statsBySubject[subj];
-            const pct = item.totalHours > 0 ? Math.round((item.presentHours / item.totalHours) * 100) : 0;
-            if (pct < 75) {
-              const neededInSub = Math.ceil(((0.75 * item.totalHours) - item.presentHours) / 0.25);
-              shortageList.push({
-                subject: subj,
-                pct: pct,
-                totalHours: item.totalHours,
-                presentHours: item.presentHours,
-                absentHours: item.absentHours,
-                needed: Math.max(1, neededInSub)
-              });
-            }
-          });
-
-          // Sort shortages: lowest percentage first (most urgent)
-          shortageList.sort((a, b) => a.pct - b.pct);
-
+          const spheresContainer = document.getElementById("subjectSpheresContainer");
           const shortageContainer = document.getElementById("shortageSubjectList");
           const shortageBadge = document.getElementById("shortageCountBadge");
           const shortageCard = document.getElementById("shortageAlertCard");
 
-          if (shortageList.length === 0) {
+          document.getElementById("sphereSemesterTitle").textContent = finalSem;
+
+          // 1. Fetch subjects catalogue to identify all subjects in this student's semester
+          let allSubjectsList = [];
+          try {
+            const subjectsSnap = await db.collection("subjects").get();
+            subjectsSnap.forEach(doc => {
+              const sData = doc.data();
+              allSubjectsList.push({
+                id: doc.id,
+                code: (sData.code || doc.id).trim(),
+                name: (sData.name || sData.code || doc.id).trim(),
+                semester: Number(sData.semester) || 5,
+                department: (sData.department || "").trim()
+              });
+            });
+          } catch (e) {
+            console.warn("Error fetching subjects:", e);
+          }
+
+          // Build dictionary for fast lookup (code -> def, name -> def, id -> def)
+          const subjectDefsMap = new Map();
+          allSubjectsList.forEach(s => {
+            subjectDefsMap.set(s.code.toLowerCase(), s);
+            subjectDefsMap.set(s.name.toLowerCase(), s);
+            subjectDefsMap.set(s.id.toLowerCase(), s);
+          });
+
+          // Detect student department from class or user profile
+          const classUpper = (finalClass || "").toUpperCase();
+          const isISE = classUpper.includes("ISE") || classUpper.includes("INFORMATION");
+          const isCSE = classUpper.includes("CSE") || classUpper.includes("COMPUTER");
+
+          // Filter subjects belonging to student's semester
+          let semesterSubjects = allSubjectsList.filter(s => s.semester === Number(finalSem));
+          if (isISE) {
+            const iseMatches = semesterSubjects.filter(s => {
+              const d = s.department.toUpperCase();
+              return d.includes("ISE") || d.includes("INFORMATION") || d.length === 0;
+            });
+            if (iseMatches.length > 0) semesterSubjects = iseMatches;
+          } else if (isCSE) {
+            const cseMatches = semesterSubjects.filter(s => {
+              const d = s.department.toUpperCase();
+              return d.includes("CSE") || d.includes("COMPUTER") || d.length === 0;
+            });
+            if (cseMatches.length > 0) semesterSubjects = cseMatches;
+          }
+
+          // 2. Compute attendance strictly per subject
+          const statsBySubject = {};
+          const records = Array.from(recordsMap.values());
+
+          records.forEach(data => {
+            const rawSubj = (data.subjectId || "General").trim();
+            const matchedDef = subjectDefsMap.get(rawSubj.toLowerCase());
+            const subjDisplayName = matchedDef ? matchedDef.name : rawSubj;
+            const subjCode = matchedDef ? matchedDef.code : rawSubj;
+            const sHours = Number(data.hours) || 1;
+
+            if (!statsBySubject[subjDisplayName]) {
+              statsBySubject[subjDisplayName] = {
+                code: subjCode,
+                name: subjDisplayName,
+                totalHours: 0,
+                presentHours: 0,
+                absentHours: 0
+              };
+            }
+
+            statsBySubject[subjDisplayName].totalHours += sHours;
+
+            if (data.status === "Present") {
+              statsBySubject[subjDisplayName].presentHours += sHours;
+            } else {
+              statsBySubject[subjDisplayName].absentHours += sHours;
+            }
+          });
+
+          // Also guarantee any subject the student attended is present in semesterSubjects
+          const existingNames = new Set(semesterSubjects.map(s => s.name.toLowerCase()));
+          Object.values(statsBySubject).forEach(st => {
+            if (!existingNames.has(st.name.toLowerCase())) {
+              semesterSubjects.push({
+                code: st.code,
+                name: st.name,
+                semester: Number(finalSem),
+                department: ""
+              });
+              existingNames.add(st.name.toLowerCase());
+            }
+          });
+
+          // Color Profiler for Differentiated Spheres:
+          // >75% to 100%: Light Green -> Dark Green
+          // 75% to 0%: Light Red -> Dark Red
+          // 0 Classes Held: Slate Gray
+          function getSphereColorProfile(pct, totalHours) {
+            if (totalHours === 0) {
+              return {
+                gradient: "radial-gradient(circle at 35% 30%, #94a3b8 0%, #475569 55%, #1e293b 100%)",
+                glow: "rgba(100, 116, 139, 0.4)",
+                barColor: "#94a3b8",
+                statusLabel: "0 Classes Held"
+              };
+            }
+
+            if (pct >= 75) {
+              // Light Green at 75% -> Dark Green at 100%
+              const t = Math.min(1, Math.max(0, (pct - 75) / 25));
+              // Lightness: 75% -> High 76%, Base 54%, Depth 34% (Light Green)
+              //            100% -> High 40%, Base 24%, Depth 10% (Dark Green)
+              const lHigh = Math.round(76 - t * 36);
+              const lBase = Math.round(54 - t * 30);
+              const lDepth = Math.round(34 - t * 24);
+
+              const gradient = `radial-gradient(circle at 35% 30%, hsl(142, 80%, ${lHigh}%) 0%, hsl(142, 75%, ${lBase}%) 55%, hsl(142, 85%, ${lDepth}%) 100%)`;
+              const glow = `hsla(142, 80%, ${lBase}%, 0.45)`;
+              const barColor = `hsl(142, 75%, ${lBase}%)`;
+
+              return {
+                gradient: gradient,
+                glow: glow,
+                barColor: barColor,
+                statusLabel: "Eligible (>=75%)"
+              };
+            } else {
+              // Light Red near 75% -> Dark Red near 0%
+              const r = Math.min(1, Math.max(0, (75 - pct) / 75));
+              // Lightness: 74% -> High 76%, Base 60%, Depth 42% (Light Red)
+              //            0% -> High 40%, Base 24%, Depth 10% (Dark Red)
+              const lHigh = Math.round(76 - r * 36);
+              const lBase = Math.round(60 - r * 36);
+              const lDepth = Math.round(42 - r * 32);
+
+              const gradient = `radial-gradient(circle at 35% 30%, hsl(0, 85%, ${lHigh}%) 0%, hsl(0, 80%, ${lBase}%) 55%, hsl(0, 85%, ${lDepth}%) 100%)`;
+              const glow = `hsla(0, 85%, ${lBase}%, 0.45)`;
+              const barColor = `hsl(0, 80%, ${lBase}%)`;
+
+              return {
+                gradient: gradient,
+                glow: glow,
+                barColor: barColor,
+                statusLabel: "Shortage (<75%)"
+              };
+            }
+          }
+
+          // 3. Render 3D Subject Spheres
+          if (semesterSubjects.length === 0) {
+            spheresContainer.innerHTML = `
+              <div style="text-align: center; color: var(--text-muted); padding: 2rem; font-size: 0.9rem;">
+                No subjects found for Semester ${finalSem}. Add subjects in the Subject Catalog.
+              </div>
+            `;
+          } else {
+            spheresContainer.innerHTML = semesterSubjects.map((s) => {
+              // Percentage strictly calculated on this subject only
+              const subStat = statsBySubject[s.name] || 
+                              statsBySubject[s.code] || 
+                              { totalHours: 0, presentHours: 0, absentHours: 0 };
+              const total = subStat.totalHours;
+              const present = subStat.presentHours;
+              const pct = total > 0 ? Math.round((present / total) * 100) : 0;
+
+              const colorProfile = getSphereColorProfile(pct, total);
+
+              return `
+                <div class="sphere-wrapper" onclick="this.classList.toggle('flipped')" title="Tap to flip and view ${s.name} attendance %">
+                  <div class="sphere-orb" style="box-shadow: 0 12px 25px -4px ${colorProfile.glow};">
+                    <!-- Front Face: ONLY the subject name with differentiated color -->
+                    <div class="sphere-face sphere-front" style="background: ${colorProfile.gradient};">
+                      <div class="sphere-subject-title">${s.name}</div>
+                      <div class="sphere-tap-hint">👆 Tap</div>
+                    </div>
+                    <!-- Back Face: Attendance % for this subject only with matching differentiated color -->
+                    <div class="sphere-face sphere-back" style="background: ${colorProfile.gradient};">
+                      <div class="sphere-pct-value">${total > 0 ? pct + '%' : '0%'}</div>
+                      <div class="sphere-hours-detail">${present} / ${total} hrs</div>
+                      <div class="sphere-eligibility-badge" style="background: rgba(255,255,255,0.25); color: #ffffff;">${colorProfile.statusLabel}</div>
+                    </div>
+                  </div>
+                </div>
+              `;
+            }).join("");
+          }
+
+          // 4. Populate Subjects with Shortage (< 75%)
+          const shortageList = [];
+          semesterSubjects.forEach(s => {
+            const subStat = statsBySubject[s.name] || statsBySubject[s.code];
+            if (subStat && subStat.totalHours > 0) {
+              const pct = Math.round((subStat.presentHours / subStat.totalHours) * 100);
+              if (pct < 75) {
+                const neededInSub = Math.ceil(((0.75 * subStat.totalHours) - subStat.presentHours) / 0.25);
+                shortageList.push({
+                  subject: s.name,
+                  pct: pct,
+                  totalHours: subStat.totalHours,
+                  presentHours: subStat.presentHours,
+                  absentHours: subStat.absentHours,
+                  needed: Math.max(1, neededInSub)
+                });
+              }
+            }
+          });
+
+          // Sort shortages: lowest percentage first (most critical)
+          shortageList.sort((a, b) => a.pct - b.pct);
+
+          if (records.length === 0) {
+            shortageCard.style.borderTopColor = "#94a3b8";
+            shortageBadge.className = "badge";
+            shortageBadge.textContent = "0 Records";
+            shortageContainer.innerHTML = `
+              <div style="text-align: center; color: var(--text-muted); padding: 1.5rem; font-size: 0.85rem;">
+                No attendance sessions recorded yet for your roll number.
+              </div>
+            `;
+          } else if (shortageList.length === 0) {
             shortageCard.style.borderTopColor = "var(--success)";
             shortageBadge.className = "badge badge-present";
             shortageBadge.textContent = "0 Shortages";
@@ -457,50 +724,57 @@
             shortageCard.style.borderTopColor = "var(--danger)";
             shortageBadge.className = "badge badge-absent";
             shortageBadge.textContent = `${shortageList.length} Subject${shortageList.length > 1 ? 's' : ''}`;
-
-            shortageContainer.innerHTML = shortageList.map(s => `
-              <div style="background: #fff5f5; border: 1px solid #fed7d7; border-left: 4px solid var(--danger); border-radius: 6px; padding: 0.65rem 0.85rem;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
-                  <strong style="font-size: 0.95rem; color: var(--text);">${s.subject}</strong>
-                  <span class="badge badge-absent" style="font-size: 0.8rem; font-weight: 700;">${s.pct}%</span>
+            shortageContainer.innerHTML = shortageList.map(s => {
+              const profile = getSphereColorProfile(s.pct, s.totalHours);
+              return `
+                <div style="background: #fff5f5; border: 1px solid #fed7d7; border-left: 4px solid ${profile.barColor}; border-radius: 6px; padding: 0.65rem 0.85rem;">
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+                    <strong style="font-size: 0.95rem; color: var(--text);">${s.subject}</strong>
+                    <span class="badge" style="font-size: 0.8rem; font-weight: 700; background: ${profile.barColor}; color: #ffffff;">${s.pct}%</span>
+                  </div>
+                  <div class="progress-bar-container" style="height: 6px; margin-bottom: 0.4rem; background: #fed7d7;">
+                    <div class="progress-bar" style="width: ${s.pct}%; background: ${profile.barColor};"></div>
+                  </div>
+                  <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.775rem; color: var(--text-muted); flex-wrap: wrap; gap: 0.25rem;">
+                    <span>Attended: <strong>${s.presentHours}/${s.totalHours} hrs</strong> (${s.absentHours} missed)</span>
+                    <span style="color: ${profile.barColor}; font-weight: 700;">Need +${s.needed} hr${s.needed > 1 ? 's' : ''} to reach 75%</span>
+                  </div>
                 </div>
-                <div class="progress-bar-container" style="height: 6px; margin-bottom: 0.4rem; background: #fed7d7;">
-                  <div class="progress-bar" style="width: ${s.pct}%; background: var(--danger);"></div>
-                </div>
-                <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.775rem; color: var(--text-muted); flex-wrap: wrap; gap: 0.25rem;">
-                  <span>Attended: <strong>${s.presentHours}/${s.totalHours} hrs</strong> (${s.absentHours} missed)</span>
-                  <span style="color: #c53030; font-weight: 700;">Need +${s.needed} hr${s.needed > 1 ? 's' : ''} to reach 75%</span>
-                </div>
-              </div>
-            `).join("");
+              `;
+            }).join("");
           }
 
-          // Render Subject Breakdown Table
-          subjectBody.innerHTML = Object.keys(statsBySubject).map(subj => {
-            const item = statsBySubject[subj];
-            const pct = item.totalHours > 0 ? Math.round((item.presentHours / item.totalHours) * 100) : 0;
-            const isEligible = pct >= 75;
+          // 5. Render Subject Breakdown Table
+          if (semesterSubjects.length === 0) {
+            subjectBody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">No subjects registered for Semester ${finalSem}.</td></tr>`;
+          } else {
+            subjectBody.innerHTML = semesterSubjects.map(s => {
+              const subStat = statsBySubject[s.name] || statsBySubject[s.code] || { totalHours: 0, presentHours: 0, absentHours: 0 };
+              const pct = subStat.totalHours > 0 ? Math.round((subStat.presentHours / subStat.totalHours) * 100) : 0;
+              const isEligible = pct >= 75;
+              const colorProfile = getSphereColorProfile(pct, subStat.totalHours);
 
-            return `
-              <tr>
-                <td><strong>${subj}</strong></td>
-                <td style="text-align: center;"><strong>${item.totalHours}</strong> hrs</td>
-                <td style="text-align: center; color: var(--success); font-weight: 600;">${item.presentHours} hrs</td>
-                <td style="text-align: center; color: var(--danger); font-weight: 600;">${item.absentHours} hrs</td>
-                <td style="text-align: center;">
-                  <strong>${pct}%</strong>
-                  <div class="progress-bar-container">
-                    <div class="progress-bar" style="width: ${pct}%; background: ${isEligible ? 'var(--success)' : 'var(--danger)'};"></div>
-                  </div>
-                </td>
-                <td>
-                  <span class="badge ${isEligible ? 'badge-present' : 'badge-absent'}">
-                    ${isEligible ? 'Eligible (>=75%)' : 'Shortage (<75%)'}
-                  </span>
-                </td>
-              </tr>
-            `;
-          }).join("");
+              return `
+                <tr>
+                  <td><strong>${s.name}</strong> <span style="font-size:0.75rem; color:var(--text-muted); margin-left:0.3rem;">(${s.code})</span></td>
+                  <td style="text-align: center;"><strong>${subStat.totalHours}</strong> hrs</td>
+                  <td style="text-align: center; color: var(--success); font-weight: 600;">${subStat.presentHours} hrs</td>
+                  <td style="text-align: center; color: var(--danger); font-weight: 600;">${subStat.absentHours} hrs</td>
+                  <td style="text-align: center;">
+                    <strong>${pct}%</strong>
+                    <div class="progress-bar-container">
+                      <div class="progress-bar" style="width: ${pct}%; background: ${colorProfile.barColor};"></div>
+                    </div>
+                  </td>
+                  <td>
+                    <span class="badge ${subStat.totalHours === 0 ? '' : isEligible ? 'badge-present' : 'badge-absent'}">
+                      ${subStat.totalHours === 0 ? 'No Classes' : isEligible ? 'Eligible (>=75%)' : 'Shortage (<75%)'}
+                    </span>
+                  </td>
+                </tr>
+              `;
+            }).join("");
+          }
 
           // Render Logs Table
           logsBody.innerHTML = records.slice(0, 30).map(r => {
@@ -528,6 +802,23 @@
           console.error("Error loading student attendance:", err);
         }
       });
+    }
+
+    let allSpheresFlipped = false;
+    function toggleAllSpheres() {
+      allSpheresFlipped = !allSpheresFlipped;
+      const wrappers = document.querySelectorAll("#subjectSpheresContainer .sphere-wrapper");
+      wrappers.forEach(w => {
+        if (allSpheresFlipped) {
+          w.classList.add("flipped");
+        } else {
+          w.classList.remove("flipped");
+        }
+      });
+      const btn = document.getElementById("toggleAllSpheresBtn");
+      if (btn) {
+        btn.textContent = allSpheresFlipped ? "🔄 Flip to Names" : "🔄 Reveal All %";
+      }
     }
 
     window.addEventListener("DOMContentLoaded", loadStudentAttendance);
