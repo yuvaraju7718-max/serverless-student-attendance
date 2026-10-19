@@ -1,7 +1,123 @@
 // Authentication & Role-Based Access Control Helper
 
 /**
- * Handle user login with Firebase Auth and redirect based on role
+ * Handle user profile lookup, role resolution, and dashboard redirection after successful login
+ * @param {firebase.User} user
+ */
+async function handlePostLogin(user) {
+  if (!user) throw new Error("No authenticated user found.");
+
+  // Fetch user profile from Firestore 'users' collection to determine role
+  let userDoc = await db.collection("users").doc(user.uid).get();
+
+  if (!userDoc.exists) {
+    console.log("No document found with Document ID = user.uid. Checking by email:", user.email);
+
+    // 1. Check if user already exists in 'users' collection by email
+    const emailQuery = await db.collection("users").where("email", "==", user.email).get();
+
+    if (!emailQuery.empty) {
+      const foundDoc = emailQuery.docs[0];
+      const foundData = foundDoc.data();
+      console.log("Found existing user record under Document ID:", foundDoc.id);
+
+      try {
+        await db.collection("users").doc(user.uid).set({
+          ...foundData,
+          uid: user.uid,
+          photoUrl: foundData.photoUrl || user.photoURL || ""
+        }, { merge: true });
+        userDoc = await db.collection("users").doc(user.uid).get();
+      } catch (e) {
+        const role = foundData.role || "admin";
+        sessionStorage.setItem("userRole", role);
+        sessionStorage.setItem("userName", foundData.name || user.displayName || user.email);
+        redirectByRole(role);
+        return;
+      }
+    } else {
+      // 2. Check if user exists in 'teachers' collection by email
+      const teacherQuery = await db.collection("teachers").where("email", "==", user.email).get();
+      if (!teacherQuery.empty) {
+        const tData = teacherQuery.docs[0].data();
+        console.log("Found matching teacher record for:", user.email);
+        const tProfile = {
+          uid: user.uid,
+          name: tData.name || user.displayName || user.email.split("@")[0].toUpperCase(),
+          email: user.email,
+          role: "teacher",
+          department: tData.department || "",
+          photoUrl: user.photoURL || tData.photoUrl || "",
+          createdAt: new Date().toISOString()
+        };
+        await db.collection("users").doc(user.uid).set(tProfile);
+        userDoc = await db.collection("users").doc(user.uid).get();
+      } else {
+        // 3. Check if user exists in 'students' collection by email
+        const studentQuery = await db.collection("students").where("email", "==", user.email).get();
+        if (!studentQuery.empty) {
+          const sData = studentQuery.docs[0].data();
+          console.log("Found matching student record for:", user.email);
+          const sProfile = {
+            uid: user.uid,
+            name: sData.name || user.displayName || user.email.split("@")[0].toUpperCase(),
+            email: user.email,
+            role: "student",
+            rollNumber: sData.rollNumber || "",
+            classId: sData.classId || "",
+            semester: sData.semester || "",
+            photoUrl: user.photoURL || sData.photoUrl || "",
+            createdAt: new Date().toISOString()
+          };
+          await db.collection("users").doc(user.uid).set(sProfile);
+          userDoc = await db.collection("users").doc(user.uid).get();
+        } else {
+          // 4. Fallback: Auto-provision as Admin for first-time login
+          console.log("Attempting first-time Admin auto-provisioning for UID:", user.uid);
+          try {
+            const adminProfile = {
+              uid: user.uid,
+              name: (user.displayName || user.email.split("@")[0]).toUpperCase(),
+              email: user.email,
+              role: "admin",
+              photoUrl: user.photoURL || "",
+              createdAt: new Date().toISOString()
+            };
+            await db.collection("users").doc(user.uid).set(adminProfile);
+            userDoc = await db.collection("users").doc(user.uid).get();
+          } catch (provisionErr) {
+            console.warn("Auto-provision failed:", provisionErr);
+            await auth.signOut();
+            throw new Error(
+              `Logged in as ${user.email}, but your profile was not found in Firestore. ` +
+              `In Firestore Console > 'users' collection, create a document with Document ID: ${user.uid} and field role: "admin".`
+            );
+          }
+        }
+      }
+    }
+  }
+
+  const userData = (userDoc && userDoc.exists ? userDoc.data() : {}) || {};
+  const role = userData.role || "admin";
+
+  // If user signed in with Google and profile has no photoUrl, sync it
+  if (user.photoURL && !userData.photoUrl) {
+    try {
+      await db.collection("users").doc(user.uid).set({ photoUrl: user.photoURL }, { merge: true });
+    } catch (ignore) {}
+  }
+
+  // Save session info
+  sessionStorage.setItem("userRole", role);
+  sessionStorage.setItem("userName", userData.name || user.displayName || user.email);
+
+  // Redirect to corresponding dashboard
+  redirectByRole(role);
+}
+
+/**
+ * Handle user login with Email/Password and redirect based on role
  * @param {string} email 
  * @param {string} password 
  */
@@ -12,69 +128,25 @@ async function loginUser(email, password) {
 
   try {
     const userCredential = await auth.signInWithEmailAndPassword(email.trim(), password);
-    const user = userCredential.user;
+    await handlePostLogin(userCredential.user);
+  } catch (error) {
+    throw new Error(getFriendlyErrorMessage(error));
+  }
+}
 
-    // Fetch user profile from Firestore 'users' collection to determine role
-    let userDoc = await db.collection("users").doc(user.uid).get();
+/**
+ * Handle user login with Google Authentication provider and redirect based on role
+ */
+async function loginWithGoogle() {
+  if (!auth) {
+    throw new Error("Firebase Authentication is not available.");
+  }
 
-    if (!userDoc.exists) {
-      console.log("No document found with Document ID = user.uid. Checking by email:", user.email);
-      // Check if user created the document using Auto-ID or their email as the Document ID
-      const emailQuery = await db.collection("users").where("email", "==", user.email).get();
-
-      if (!emailQuery.empty) {
-        const foundDoc = emailQuery.docs[0];
-        const foundData = foundDoc.data();
-        console.log("Found existing record under Document ID:", foundDoc.id);
-
-        try {
-          // Clone/save under user.uid for direct lookup
-          await db.collection("users").doc(user.uid).set({
-            ...foundData,
-            uid: user.uid
-          }, { merge: true });
-          userDoc = await db.collection("users").doc(user.uid).get();
-        } catch (e) {
-          // If write fails, proceed with the found record
-          const role = foundData.role || "admin";
-          sessionStorage.setItem("userRole", role);
-          sessionStorage.setItem("userName", foundData.name || user.email);
-          redirectByRole(role);
-          return;
-        }
-      } else {
-        // No document exists at all. Attempt auto-provisioning as Admin for the first user
-        console.log("Attempting first-time Admin auto-provisioning for UID:", user.uid);
-        try {
-          const adminProfile = {
-            uid: user.uid,
-            name: user.email.split("@")[0].toUpperCase(),
-            email: user.email,
-            role: "admin",
-            createdAt: new Date().toISOString()
-          };
-          await db.collection("users").doc(user.uid).set(adminProfile);
-          userDoc = await db.collection("users").doc(user.uid).get();
-        } catch (provisionErr) {
-          console.warn("Auto-provision failed:", provisionErr);
-          await auth.signOut();
-          throw new Error(
-            `Logged in as ${user.email}, but your profile was not found in Firestore. ` +
-            `In Firestore Console > 'users' collection, create a document with Document ID: ${user.uid} and field role: "admin".`
-          );
-        }
-      }
-    }
-
-    const userData = userDoc.data() || {};
-    const role = userData.role || "admin";
-
-    // Save session info
-    sessionStorage.setItem("userRole", role);
-    sessionStorage.setItem("userName", userData.name || user.email);
-
-    // Redirect to corresponding dashboard
-    redirectByRole(role);
+  try {
+    const provider = new firebase.auth.GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: 'select_account' });
+    const userCredential = await auth.signInWithPopup(provider);
+    await handlePostLogin(userCredential.user);
   } catch (error) {
     throw new Error(getFriendlyErrorMessage(error));
   }
@@ -189,6 +261,18 @@ function getFriendlyErrorMessage(error) {
       return "Too many unsuccessful attempts. Please wait a few minutes before trying again.";
     case "auth/network-request-failed":
       return "Network connection issue. Please check your internet connection.";
+    case "auth/operation-not-allowed":
+      return "Google Sign-In is not enabled for this project. Please enable Google provider in Firebase Console > Authentication > Sign-in method.";
+    case "auth/popup-closed-by-user":
+      return "Google Sign-In popup was closed before completing authentication.";
+    case "auth/popup-blocked":
+      return "Google Sign-In popup was blocked by your browser. Please allow popups for this site.";
+    case "auth/cancelled-popup-request":
+      return "Another Google sign-in attempt is already in progress.";
+    case "auth/unauthorized-domain":
+      return "This domain is not authorized for Google Sign-In. Add 'localhost' or your hosting domain in Firebase Console > Authentication > Settings > Authorized Domains.";
+    case "auth/account-exists-with-different-credential":
+      return "An account already exists with this email using a different sign-in method.";
     default:
       return error.message || "An unexpected error occurred. Please try again.";
   }
