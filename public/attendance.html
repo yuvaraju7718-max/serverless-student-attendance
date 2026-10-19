@@ -21,10 +21,10 @@
 
   <!-- Navigation Bar -->
   <header class="navbar">
-    <a href="teacher-dashboard.html" class="nav-brand">
+    <a href="teacher-dashboard.html" class="nav-brand" id="navBrandLink">
       🎓 Cloud Attendance &bull; Attendance Portal
     </a>
-    <nav class="nav-links">
+    <nav class="nav-links" id="mainNavLinks">
       <a href="teacher-dashboard.html" class="nav-link">Dashboard</a>
       <a href="attendance.html" class="nav-link active">Mark Attendance</a>
       <a href="reports.html" class="nav-link">Reports</a>
@@ -413,6 +413,29 @@
                 }).join("");
             }
           } else {
+            // Admin role: update navbar to standard Admin navigation
+            const navLinks = document.getElementById("mainNavLinks");
+            if (navLinks) {
+              navLinks.innerHTML = `
+                <a href="admin-dashboard.html" class="nav-link">Dashboard</a>
+                <a href="students.html" class="nav-link">Students</a>
+                <a href="teachers.html" class="nav-link">Teachers</a>
+                <a href="classes.html" class="nav-link">Classes</a>
+                <a href="subjects.html" class="nav-link">Courses</a>
+                <a href="reports.html" class="nav-link">Reports</a>
+              `;
+            }
+            const brandLink = document.getElementById("navBrandLink");
+            if (brandLink) {
+              brandLink.href = "admin-dashboard.html";
+              brandLink.innerHTML = "🎓 Cloud Attendance &bull; Admin";
+            }
+            const roleBadge = document.getElementById("navUserRole");
+            if (roleBadge) {
+              roleBadge.textContent = "admin";
+              roleBadge.className = "role-badge role-admin";
+            }
+
             // Admin: Load all classes and subjects
             [classesSnap, subjectsSnap] = await Promise.all([
               db.collection("classes").get(),

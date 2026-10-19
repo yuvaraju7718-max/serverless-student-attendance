@@ -14,16 +14,19 @@
 
   <!-- Navigation Bar -->
   <header class="navbar">
-    <a href="admin-dashboard.html" class="nav-brand">
-      🎓 Cloud Attendance &bull; Reports
+    <a href="admin-dashboard.html" class="nav-brand" id="navBrandLink">
+      🎓 Cloud Attendance &bull; Admin
     </a>
-    <nav class="nav-links">
-      <a href="admin-dashboard.html" class="nav-link" id="navDashLink">Dashboard</a>
-      <a href="attendance.html" class="nav-link">Attendance</a>
+    <nav class="nav-links" id="mainNavLinks">
+      <a href="admin-dashboard.html" class="nav-link">Dashboard</a>
+      <a href="students.html" class="nav-link">Students</a>
+      <a href="teachers.html" class="nav-link">Teachers</a>
+      <a href="classes.html" class="nav-link">Classes</a>
+      <a href="subjects.html" class="nav-link">Courses</a>
       <a href="reports.html" class="nav-link active">Reports</a>
     </nav>
     <div class="nav-user">
-      <span id="navUserName">User</span>
+      <span id="navUserName">Admin</span>
       <span id="navUserRole" class="role-badge role-admin">admin</span>
       <button onclick="logoutUser()" class="btn btn-secondary btn-sm">Sign Out</button>
     </div>
@@ -303,18 +306,93 @@
         loggedInPossibleIds = [user.uid];
 
         try {
-          const userDoc = await db.collection("users").doc(user.uid).get();
-          const uData = userDoc.exists ? userDoc.data() : {};
-          currentUserRole = uData.role || "teacher";
-          loggedInTeacherName = uData.name || user.email.split("@")[0];
-          if (uData.id) loggedInPossibleIds.push(uData.id);
+          let userDoc = await db.collection("users").doc(user.uid).get();
+          let uData = userDoc.exists ? userDoc.data() : null;
 
-          if (currentUserRole === "teacher") {
-            // Update Navbar link to point to Teacher Dashboard
-            const dashLink = document.getElementById("navDashLink");
-            if (dashLink) {
-              dashLink.href = "teacher-dashboard.html";
-              dashLink.textContent = "Dashboard";
+          // If not found by UID, check users collection by email (matches auth.js behavior)
+          if (!uData && user.email) {
+            try {
+              const emailSnap = await db.collection("users").where("email", "==", user.email).get();
+              if (!emailSnap.empty) {
+                uData = emailSnap.docs[0].data();
+              }
+            } catch (e) {
+              console.warn("Could not query users by email:", e);
+            }
+          }
+
+          // Determine role: prioritize users doc role, then sessionStorage, default to admin
+          const sessionRole = sessionStorage.getItem("userRole");
+          currentUserRole = (uData && uData.role) || sessionRole || "admin";
+          loggedInTeacherName = (uData && uData.name) || user.displayName || user.email.split("@")[0];
+          if (uData && uData.id) loggedInPossibleIds.push(uData.id);
+
+          const navLinks = document.getElementById("mainNavLinks");
+          const brandLink = document.getElementById("navBrandLink");
+          const roleBadge = document.getElementById("navUserRole");
+          const banner = document.getElementById("facultyNoticeBanner");
+          const subTitleEl = document.querySelector("main.container p");
+
+          if (currentUserRole === "admin") {
+            // ADMIN ROLE: Always show full admin navigation links
+            isTeacherScoped = false;
+            activeTeacherName = "";
+            activeTeacherEmail = "";
+            activeTeacherIds = [];
+
+            if (navLinks) {
+              navLinks.innerHTML = `
+                <a href="admin-dashboard.html" class="nav-link">Dashboard</a>
+                <a href="students.html" class="nav-link">Students</a>
+                <a href="teachers.html" class="nav-link">Teachers</a>
+                <a href="classes.html" class="nav-link">Classes</a>
+                <a href="subjects.html" class="nav-link">Courses</a>
+                <a href="reports.html" class="nav-link active">Reports</a>
+              `;
+            }
+
+            if (brandLink) {
+              brandLink.href = "admin-dashboard.html";
+              brandLink.innerHTML = "🎓 Cloud Attendance &bull; Admin";
+            }
+
+            if (roleBadge) {
+              roleBadge.textContent = "admin";
+              roleBadge.className = "role-badge role-admin";
+            }
+
+            if (banner) {
+              banner.style.display = "none";
+            }
+
+            if (adminFacultyGroup) {
+              adminFacultyGroup.style.display = "block";
+            }
+
+            if (subTitleEl) {
+              subTitleEl.textContent = "Generate class-wise and course-wise cumulative attendance summaries.";
+            }
+
+          } else if (currentUserRole === "teacher") {
+            // FACULTY / TEACHER ROLE: Show faculty navigation links
+            isTeacherScoped = true;
+
+            if (navLinks) {
+              navLinks.innerHTML = `
+                <a href="teacher-dashboard.html" class="nav-link">Dashboard</a>
+                <a href="attendance.html" class="nav-link">Mark Attendance</a>
+                <a href="reports.html" class="nav-link active">Reports</a>
+              `;
+            }
+
+            if (brandLink) {
+              brandLink.href = "teacher-dashboard.html";
+              brandLink.innerHTML = "🎓 Cloud Attendance &bull; Faculty";
+            }
+
+            if (roleBadge) {
+              roleBadge.textContent = "teacher";
+              roleBadge.className = "role-badge role-teacher";
             }
 
             // Resolve teacher IDs from teachers collection
@@ -330,31 +408,22 @@
               console.warn("teachers query:", tErr);
             }
 
-            // Set active scope
             activeTeacherName = loggedInTeacherName;
             activeTeacherEmail = loggedInTeacherEmail;
             activeTeacherIds = loggedInPossibleIds;
-            isTeacherScoped = true;
 
-            // Display Faculty Notice Banner
-            const banner = document.getElementById("facultyNoticeBanner");
             if (banner) {
               banner.style.display = "block";
               banner.innerHTML = `👨‍🏫 <strong>Faculty Report Mode:</strong> Displaying attendance reports exclusively for classes and courses assigned to and conducted by you (<strong>${loggedInTeacherName.toUpperCase()}</strong>).`;
             }
 
-            // Update Page Subtitle
-            const subTitleEl = document.querySelector("main.container p");
             if (subTitleEl) {
               subTitleEl.textContent = "Attendance summaries for classes and students conducted by your faculty account.";
             }
 
-            if (adminFacultyGroup) adminFacultyGroup.style.display = "none";
-
-          } else {
-            // Admin role
-            if (adminFacultyGroup) adminFacultyGroup.style.display = "block";
-            isTeacherScoped = false;
+            if (adminFacultyGroup) {
+              adminFacultyGroup.style.display = "none";
+            }
           }
 
           // Preload collections
