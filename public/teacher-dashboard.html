@@ -39,7 +39,7 @@
         </div>
         <div>
           <h1 style="font-size: 1.75rem;">Welcome, <span id="welcomeTeacherName" style="text-transform: uppercase;">Faculty Member</span></h1>
-          <p style="color: var(--text-muted); font-size: 0.95rem;">Select your assigned class and subject to record attendance or view analytics.</p>
+          <p style="color: var(--text-muted); font-size: 0.95rem;">Select your assigned class and course to record attendance or view analytics.</p>
         </div>
       </div>
       <div>
@@ -47,10 +47,10 @@
       </div>
     </div>
 
-    <!-- Assigned Classes & Subjects -->
+    <!-- Assigned Classes & Courses -->
     <div class="card">
-      <h3 class="card-title">My Assigned Classes & Subjects</h3>
-      <p class="card-subtitle">Classes and subjects authorized for your account by the administrator.</p>
+      <h3 class="card-title">My Assigned Classes & Courses</h3>
+      <p class="card-subtitle">Classes and courses authorized for your account by the administrator.</p>
 
       <div id="assignedList" class="stats-grid">
         <div style="grid-column: 1 / -1; text-align: center; padding: 2rem; color: var(--text-muted);">
@@ -71,7 +71,7 @@
               <th>Date & Time</th>
               <th>Duration</th>
               <th>Class</th>
-              <th>Subject</th>
+              <th>Course</th>
               <th style="text-align: right;">Session Report</th>
             </tr>
           </thead>
@@ -271,7 +271,7 @@
               <div style="grid-column: 1 / -1; background: #fffbeb; border: 1px solid #fef3c7; padding: 1.5rem; border-radius: 8px; color: #92400e;">
                 <h4 style="margin-bottom: 0.5rem;">No Specific Assignment Found for ${user.email}${branchNotice}</h4>
                 <p style="font-size: 0.9rem; margin-bottom: 1rem;">
-                  The administrator has not yet assigned an authorized ${teacherBranch || ''} class or subject to your faculty profile in the Admin portal.
+                  The administrator has not yet assigned an authorized ${teacherBranch || ''} class or course to your faculty profile in the Admin portal.
                 </p>
                 <a href="attendance.html" class="btn btn-primary btn-sm">Go to Attendance Portal &rarr;</a>
               </div>
@@ -282,7 +282,7 @@
                 <div class="stat-card">
                   <div class="stat-label">${data.classId || "Class"}</div>
                   <div style="font-size: 1.15rem; font-weight: 700; color: var(--text); margin-top: 0.25rem;">
-                    ${data.subjectName || data.subjectId || "Subject"}
+                    ${data.subjectName || data.subjectId || "Course"}
                   </div>
                   <div style="margin-top: 0.75rem;">
                     <a href="attendance.html?classId=${encodeURIComponent(data.classId)}&subjectId=${encodeURIComponent(data.subjectId)}" 
@@ -405,7 +405,7 @@
 
       const modal = document.getElementById("sessionReportModal");
       document.getElementById("modalSessionSubtitle").textContent = 
-        `Class: ${s.classId} • Subject: ${s.subjectId} • Date: ${s.date} • Time: ${s.time || 'N/A'} • Duration: ${s.hours} hr(s) • Conducted By: ${s.teacherName || 'You'}`;
+        `Class: ${s.classId} • Course: ${s.subjectId} • Date: ${s.date} • Time: ${s.time || 'N/A'} • Duration: ${s.hours} hr(s) • Conducted By: ${s.teacherName || 'You'}`;
 
       const total = s.students.length;
       const present = s.students.filter(x => x.status === "Present").length;

@@ -22,7 +22,7 @@
       <a href="students.html" class="nav-link">Students</a>
       <a href="teachers.html" class="nav-link active">Teachers</a>
       <a href="classes.html" class="nav-link">Classes</a>
-      <a href="subjects.html" class="nav-link">Subjects</a>
+      <a href="subjects.html" class="nav-link">Courses</a>
       <a href="reports.html" class="nav-link">Reports</a>
     </nav>
     <div class="nav-user">
@@ -36,11 +36,11 @@
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
       <div>
         <h1 style="font-size: 1.75rem;">Faculty Management</h1>
-        <p style="color: var(--text-muted); font-size: 0.95rem;">Register faculty members and allocate class/subject responsibilities.</p>
+        <p style="color: var(--text-muted); font-size: 0.95rem;">Register faculty members and allocate class/course responsibilities.</p>
       </div>
       <div style="display: flex; gap: 0.5rem;">
         <button onclick="toggleTeacherForm()" class="btn btn-primary btn-sm">+ Add Teacher</button>
-        <button onclick="toggleAssignForm()" class="btn btn-secondary btn-sm">🔗 Assign Class/Subject</button>
+        <button onclick="toggleAssignForm()" class="btn btn-secondary btn-sm">🔗 Assign Class/Course</button>
       </div>
     </div>
 
@@ -56,8 +56,8 @@
         </div>
 
         <div class="form-group" style="margin-bottom: 0;">
-          <label class="form-label" for="teacherEmail">Institutional Email (@clg.ac.in)</label>
-          <input type="email" id="teacherEmail" class="form-control" placeholder="teacher@clg.ac.in" required pattern="^[a-zA-Z0-9._%+-]+@clg\.ac\.in$" title="Email must end with @clg.ac.in" />
+          <label class="form-label" for="teacherEmail">Email Address</label>
+          <input type="email" id="teacherEmail" class="form-control" placeholder="e.g. mail@gmail.com" required />
         </div>
 
         <div class="form-group" style="margin-bottom: 0;">
@@ -72,9 +72,9 @@
       </form>
     </div>
 
-    <!-- Assign Class/Subject Card -->
+    <!-- Assign Class/Course Card -->
     <div class="card" id="assignCard" style="display: none; background: #faf5ff; border-color: #e9d5ff;">
-      <h3 class="card-title" style="color: #6b21a8;">Assign Teacher to Class & Subject</h3>
+      <h3 class="card-title" style="color: #6b21a8;">Assign Teacher to Class & Course</h3>
       <p class="card-subtitle">Authorizes this teacher to mark and view attendance for this specific section.</p>
       <form id="assignForm" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-top: 1rem;">
         <div class="form-group" style="margin-bottom: 0;">
@@ -92,9 +92,9 @@
         </div>
 
         <div class="form-group" style="margin-bottom: 0;">
-          <label class="form-label" for="assignSubjectSelect">Select Subject</label>
+          <label class="form-label" for="assignSubjectSelect">Select Course</label>
           <select id="assignSubjectSelect" class="form-select" required>
-            <option value="">-- Choose Subject --</option>
+            <option value="">-- Choose Course --</option>
           </select>
         </div>
 
@@ -122,7 +122,7 @@
             <thead>
               <tr>
                 <th>Teacher</th>
-                <th>Assigned Classes & Subjects</th>
+                <th>Assigned Classes & Courses</th>
                 <th style="text-align: right;">Action</th>
               </tr>
             </thead>
@@ -149,7 +149,7 @@
             <thead>
               <tr>
                 <th>Teacher</th>
-                <th>Assigned Classes & Subjects</th>
+                <th>Assigned Classes & Courses</th>
                 <th style="text-align: right;">Action</th>
               </tr>
             </thead>
@@ -173,7 +173,7 @@
             <tr>
               <th>Teacher</th>
               <th>Department</th>
-              <th>Assigned Classes & Subjects</th>
+              <th>Assigned Classes & Courses</th>
               <th style="text-align: right;">Action</th>
             </tr>
           </thead>
@@ -238,7 +238,7 @@
 
       if (!selectedId) {
         classSelect.innerHTML = '<option value="">-- Choose Class --</option>';
-        subjectSelect.innerHTML = '<option value="">-- Choose Subject --</option>';
+        subjectSelect.innerHTML = '<option value="">-- Choose Course --</option>';
         return;
       }
 
@@ -274,7 +274,7 @@
           return `<option value="${c.id}">${label}</option>`;
         }).join("");
 
-      subjectSelect.innerHTML = '<option value="">-- Choose Subject --</option>' +
+      subjectSelect.innerHTML = '<option value="">-- Choose Course --</option>' +
         filteredSubjects.map(s => `<option value="${s.id}" data-name="${s.name}">${s.code || s.id} - ${s.name}</option>`).join("");
     }
 
@@ -437,10 +437,9 @@
       const email = document.getElementById("teacherEmail").value.trim().toLowerCase();
       const department = document.getElementById("teacherDept").value.trim();
 
-      // Enforce Institutional Email Domain (@clg.ac.in)
-      if (!email.endsWith("@clg.ac.in")) {
-        alert("❌ Invalid Email Domain!\n\nFaculty members must have an official institutional email ending with @clg.ac.in\n(e.g. professor@clg.ac.in).");
-        showAlert("Error: Only institutional emails ending with @clg.ac.in are allowed.", "danger");
+      // Basic email validation
+      if (!email.includes("@") || !email.includes(".")) {
+        showAlert("Error: Please provide a valid email address.", "danger");
         return;
       }
 
@@ -492,13 +491,13 @@
       if (branch === "ISE") {
         if (isCseItem(classId) || isCseItem(subjectId)) {
           alert("❌ Department Mismatch!\n\nISE Faculty can ONLY be assigned to Information Science (ISE) classes and courses.");
-          showAlert("Error: ISE teachers can only be assigned to ISE classes and ISE subjects.", "danger");
+          showAlert("Error: ISE teachers can only be assigned to ISE classes and ISE courses.", "danger");
           return;
         }
       } else if (branch === "CSE") {
         if (isIseItem(classId) || isIseItem(subjectId)) {
           alert("❌ Department Mismatch!\n\nCSE Faculty can ONLY be assigned to Computer Science (CSE) classes and courses.");
-          showAlert("Error: CSE teachers can only be assigned to CSE classes and CSE subjects.", "danger");
+          showAlert("Error: CSE teachers can only be assigned to CSE classes and CSE courses.", "danger");
           return;
         }
       }

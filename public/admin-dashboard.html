@@ -22,7 +22,7 @@
       <a href="students.html" class="nav-link">Students</a>
       <a href="teachers.html" class="nav-link">Teachers</a>
       <a href="classes.html" class="nav-link">Classes</a>
-      <a href="subjects.html" class="nav-link">Subjects</a>
+      <a href="subjects.html" class="nav-link">Courses</a>
       <a href="reports.html" class="nav-link">Reports</a>
     </nav>
     <div class="nav-user">
@@ -61,9 +61,9 @@
         <a href="classes.html" style="font-size: 0.85rem; color: var(--primary); text-decoration: none;">Manage Classes &rarr;</a>
       </div>
       <div class="stat-card">
-        <div class="stat-label">Registered Subjects</div>
+        <div class="stat-label">Registered Courses</div>
         <div class="stat-value" id="totalSubjects">0</div>
-        <a href="subjects.html" style="font-size: 0.85rem; color: var(--primary); text-decoration: none;">Manage Subjects &rarr;</a>
+        <a href="subjects.html" style="font-size: 0.85rem; color: var(--primary); text-decoration: none;">Manage Courses &rarr;</a>
       </div>
     </div>
 
@@ -77,16 +77,16 @@
 
       <div class="card">
         <h3 class="card-title">Faculty Management</h3>
-        <p class="card-subtitle">Add teacher accounts and assign them to specific subjects and class sections.</p>
+        <p class="card-subtitle">Add teacher accounts and assign them to specific courses and class sections.</p>
         <a href="teachers.html" class="btn btn-primary btn-sm">+ Add / View Teachers</a>
       </div>
 
       <div class="card">
         <h3 class="card-title">Curriculum Structure</h3>
-        <p class="card-subtitle">Configure branches, semesters, classes, and course subject codes.</p>
+        <p class="card-subtitle">Configure branches, semesters, classes, and course codes.</p>
         <div style="display: flex; gap: 0.5rem;">
           <a href="classes.html" class="btn btn-secondary btn-sm">Classes</a>
-          <a href="subjects.html" class="btn btn-secondary btn-sm">Subjects</a>
+          <a href="subjects.html" class="btn btn-secondary btn-sm">Courses</a>
         </div>
       </div>
     </div>
@@ -110,7 +110,7 @@
               <th>Date & Time</th>
               <th>Duration</th>
               <th>Class</th>
-              <th>Subject</th>
+              <th>Course</th>
               <th style="text-align: right;">Attendance Report</th>
             </tr>
           </thead>
@@ -318,7 +318,7 @@
       const modal = document.getElementById("sessionReportModal");
       const facultyText = s.facultyName ? ` • Faculty: ${s.facultyName}` : '';
       document.getElementById("modalSessionSubtitle").textContent = 
-        `Class: ${s.classId} • Subject: ${s.subjectId} • Date: ${s.date} • Time: ${s.time || 'N/A'} • Duration: ${s.hours} hr(s)${facultyText}`;
+        `Class: ${s.classId} • Course: ${s.subjectId} • Date: ${s.date} • Time: ${s.time || 'N/A'} • Duration: ${s.hours} hr(s)${facultyText}`;
 
       const total = s.students.length;
       const present = s.students.filter(x => x.status === "Present").length;

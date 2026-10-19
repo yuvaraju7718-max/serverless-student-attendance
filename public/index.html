@@ -42,7 +42,7 @@
         <span class="role-badge role-admin">Administrator</span>
         <h3 style="margin-top: 0.75rem; margin-bottom: 0.5rem;">Admin Management</h3>
         <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 1rem;">
-          Register and manage students, faculty members, academic classes, and subjects. View institute-wide attendance reports.
+          Register and manage students, faculty members, academic classes, and courses. View institute-wide attendance reports.
         </p>
         <a href="login.html" class="btn btn-secondary btn-sm" style="width: 100%;">Admin Login</a>
       </div>
@@ -51,7 +51,7 @@
         <span class="role-badge role-teacher">Faculty / Teacher</span>
         <h3 style="margin-top: 0.75rem; margin-bottom: 0.5rem;">Mark Attendance</h3>
         <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 1rem;">
-          Access assigned classes and subjects, select date, mark Present or Absent in seconds, and prevent accidental double-marking.
+          Access assigned classes and courses, select date, mark Present or Absent in seconds, and prevent accidental double-marking.
         </p>
         <a href="login.html" class="btn btn-secondary btn-sm" style="width: 100%;">Teacher Login</a>
       </div>
@@ -60,7 +60,7 @@
         <span class="role-badge role-student">Student</span>
         <h3 style="margin-top: 0.75rem; margin-bottom: 0.5rem;">Student Dashboard</h3>
         <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 1rem;">
-          View real-time subject-wise and overall attendance percentage. Track eligibility criteria with zero paper registers.
+          View real-time course-wise and overall attendance percentage. Track eligibility criteria with zero paper registers.
         </p>
         <a href="login.html" class="btn btn-secondary btn-sm" style="width: 100%;">Student Login</a>
       </div>
@@ -71,9 +71,9 @@
       <h3 class="card-title">Key Architectural Highlights</h3>
       <ul style="padding-left: 1.25rem; color: var(--secondary); display: grid; gap: 0.5rem; margin-top: 0.75rem;">
         <li><strong>Zero Server Maintenance:</strong> Built on Firebase Serverless architecture (Hosting + Auth + Firestore + Cloud Functions).</li>
-        <li><strong>Deterministic Duplicate Prevention:</strong> Guarantees no duplicate records for the same student, subject, class, and date.</li>
+        <li><strong>Deterministic Duplicate Prevention:</strong> Guarantees no duplicate records for the same student, course, class, and date.</li>
         <li><strong>Strict Role-Based Authorization:</strong> Enforced at the database level with Cloud Firestore Security Rules.</li>
-        <li><strong>Automated Calculation:</strong> Real-time attendance percentage computation per subject and overall.</li>
+        <li><strong>Automated Calculation:</strong> Real-time attendance percentage computation per course and overall.</li>
       </ul>
     </div>
   </main>

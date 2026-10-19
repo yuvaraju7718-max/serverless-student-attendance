@@ -39,7 +39,7 @@
   <main class="container">
     <div style="margin-bottom: 1.5rem;">
       <h1 style="font-size: 1.75rem;">Mark Class Attendance</h1>
-      <p style="color: var(--text-muted); font-size: 0.95rem;">Select class, course subject, and session date to mark and submit attendance.</p>
+      <p style="color: var(--text-muted); font-size: 0.95rem;">Select class, course, and session date to mark and submit attendance.</p>
     </div>
 
     <div id="statusAlert" class="alert"></div>
@@ -56,9 +56,9 @@
         </div>
 
         <div class="form-group" style="margin-bottom: 0;">
-          <label class="form-label" for="subjectSelect">Subject Code & Name</label>
+          <label class="form-label" for="subjectSelect">Course Code & Name</label>
           <select id="subjectSelect" class="form-select">
-            <option value="">-- Choose Subject --</option>
+            <option value="">-- Choose Course --</option>
           </select>
         </div>
 
@@ -133,12 +133,12 @@
           </div>
         </div>
 
-        <!-- Right Column: Shortage Students (<75%) for this Class & Subject Only -->
+        <!-- Right Column: Shortage Students (<75%) for this Class & Course Only -->
         <div class="card" style="margin-bottom: 0; position: sticky; top: 1rem;">
           <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem; margin-bottom: 0.75rem;">
             <div>
-              <h3 class="card-title" style="margin-bottom: 0.2rem; font-size: 1.15rem;">⚠️ Subject Shortage (&lt;75%)</h3>
-              <p class="card-subtitle" id="shortageSubtitle" style="margin-bottom: 0; font-size: 0.85rem;">Enrolled students below 75% in this subject.</p>
+              <h3 class="card-title" style="margin-bottom: 0.2rem; font-size: 1.15rem;">⚠️ Course Shortage (&lt;75%)</h3>
+              <p class="card-subtitle" id="shortageSubtitle" style="margin-bottom: 0; font-size: 0.85rem;">Enrolled students below 75% in this course.</p>
             </div>
             <span id="shortageBadge" class="badge" style="background: #fee2e2; color: #991b1b; font-size: 0.8rem; font-weight: 700; white-space: nowrap;">0 Students</span>
           </div>
@@ -202,7 +202,7 @@
 
       const subjectsMap = teacherClassToSubjects.get(selectedClass);
       if (!subjectsMap || subjectsMap.size === 0) {
-        subjectSelect.innerHTML = '<option value="">-- No subjects assigned for this class --</option>';
+        subjectSelect.innerHTML = '<option value="">-- No courses assigned for this class --</option>';
         return;
       }
 
@@ -215,7 +215,7 @@
           const selected = (subId === defaultSubject) ? 'selected' : '';
           return `<option value="${subId}" ${selected}>${subName}</option>`;
         }).join("");
-        subjectSelect.innerHTML = '<option value="">-- Choose Subject --</option>' + options;
+        subjectSelect.innerHTML = '<option value="">-- Choose Course --</option>' + options;
         if (defaultSubject) subjectSelect.value = defaultSubject;
       }
     }
@@ -406,7 +406,7 @@
             } else if (teacherClassToSubjects.size > 0) {
               subjectSelect.innerHTML = '<option value="">-- Choose a Class first --</option>';
             } else {
-              subjectSelect.innerHTML = '<option value="">-- Choose Subject --</option>' + 
+              subjectSelect.innerHTML = '<option value="">-- Choose Course --</option>' + 
                 Array.from(subjectSet).map(s => {
                   const sub = JSON.parse(s);
                   return `<option value="${sub.id}" ${sub.id === preSubject ? 'selected' : ''}>${sub.name}</option>`;
@@ -426,13 +426,13 @@
                 return `<option value="${d.id}" ${d.id === preClass ? 'selected' : ''}>${label}</option>`;
               }).join("");
 
-            subjectSelect.innerHTML = '<option value="">-- Choose Subject --</option>' + 
+            subjectSelect.innerHTML = '<option value="">-- Choose Course --</option>' + 
               subjectsSnap.docs.map(d => `<option value="${d.id}" ${d.id === preSubject ? 'selected' : ''}>${d.data().code || d.id} - ${d.data().name || ""}</option>`).join("");
           }
 
           // If query params are provided, pre-select values but wait for teacher to press "Load Student Roster"
           if (preClass && preSubject) {
-            showAlert(`Class '${preClass}' & Subject '${preSubject}' pre-selected. Click 'Load Student Roster' below to load students.`, "info");
+            showAlert(`Class '${preClass}' & Course '${preSubject}' pre-selected. Click 'Load Student Roster' below to load students.`, "info");
           }
 
         } catch (err) {
@@ -451,20 +451,20 @@
       const durationHours = parseInt(hoursInput.value, 10) || 1;
 
       if (!classId || !subjectId || !date) {
-        showAlert("Please select Class, Subject, Date, and Time.", "danger");
+        showAlert("Please select Class, Course, Date, and Time.", "danger");
         return;
       }
 
       // Department Boundary Enforcement: ISE faculty only ISE, CSE faculty only CSE
       if (currentTeacherBranch === "ISE") {
         if (isCseItem(classId) || isCseItem(subjectId)) {
-          alert("❌ Unauthorized Department Selection!\n\nAs an ISE Faculty member, you are ONLY authorized to mark attendance for ISE classes and ISE courses.\n\nPlease select an ISE class and subject.");
+          alert("❌ Unauthorized Department Selection!\n\nAs an ISE Faculty member, you are ONLY authorized to mark attendance for ISE classes and ISE courses.\n\nPlease select an ISE class and course.");
           showAlert("Error: ISE teachers can only take ISE classes and ISE courses.", "danger");
           return;
         }
       } else if (currentTeacherBranch === "CSE") {
         if (isIseItem(classId) || isIseItem(subjectId)) {
-          alert("❌ Unauthorized Department Selection!\n\nAs a CSE Faculty member, you are ONLY authorized to mark attendance for CSE classes and CSE courses.\n\nPlease select a CSE class and subject.");
+          alert("❌ Unauthorized Department Selection!\n\nAs a CSE Faculty member, you are ONLY authorized to mark attendance for CSE classes and CSE courses.\n\nPlease select a CSE class and course.");
           showAlert("Error: CSE teachers can only take CSE classes and CSE courses.", "danger");
           return;
         }
@@ -782,13 +782,13 @@
       if (currentTeacherBranch === "ISE") {
         if (isCseItem(classId) || isCseItem(subjectId)) {
           alert("❌ Submission Blocked!\n\nISE Faculty can only submit attendance for ISE classes and ISE courses.");
-          showAlert("Error: Unauthorized class/subject submission for ISE faculty.", "danger");
+          showAlert("Error: Unauthorized class/course submission for ISE faculty.", "danger");
           return;
         }
       } else if (currentTeacherBranch === "CSE") {
         if (isIseItem(classId) || isIseItem(subjectId)) {
           alert("❌ Submission Blocked!\n\nCSE Faculty can only submit attendance for CSE classes and CSE courses.");
-          showAlert("Error: Unauthorized class/subject submission for CSE faculty.", "danger");
+          showAlert("Error: Unauthorized class/course submission for CSE faculty.", "danger");
           return;
         }
       }

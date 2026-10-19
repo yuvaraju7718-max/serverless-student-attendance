@@ -33,7 +33,7 @@
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
       <div>
         <h1 style="font-size: 1.75rem;">Attendance Analytics & Reports</h1>
-        <p style="color: var(--text-muted); font-size: 0.95rem;">Generate class-wise and subject-wise cumulative attendance summaries.</p>
+        <p style="color: var(--text-muted); font-size: 0.95rem;">Generate class-wise and course-wise cumulative attendance summaries.</p>
       </div>
       <div>
         <button onclick="window.print()" class="btn btn-secondary btn-sm">🖨️ Print / Save PDF</button>
@@ -62,7 +62,7 @@
         </div>
 
         <div class="form-group" style="margin-bottom: 0;">
-          <label class="form-label" for="reportSubject">Subject</label>
+          <label class="form-label" for="reportSubject">Course</label>
           <select id="reportSubject" class="form-select" disabled>
             <option value="">-- Choose a Class first --</option>
           </select>
@@ -124,7 +124,7 @@
               <th>Time Taken</th>
               <th>Duration (Hours)</th>
               <th>Class</th>
-              <th>Subject</th>
+              <th>Course</th>
               <th>Teacher / Faculty</th>
               <th style="text-align: center;">Present</th>
               <th style="text-align: center;">Absent</th>
@@ -340,7 +340,7 @@
             const banner = document.getElementById("facultyNoticeBanner");
             if (banner) {
               banner.style.display = "block";
-              banner.innerHTML = `👨‍🏫 <strong>Faculty Report Mode:</strong> Displaying attendance reports exclusively for classes and subjects assigned to and conducted by you (<strong>${loggedInTeacherName.toUpperCase()}</strong>).`;
+              banner.innerHTML = `👨‍🏫 <strong>Faculty Report Mode:</strong> Displaying attendance reports exclusively for classes and courses assigned to and conducted by you (<strong>${loggedInTeacherName.toUpperCase()}</strong>).`;
             }
 
             // Update Page Subtitle
@@ -424,7 +424,7 @@
 
             if (conductedClasses.size === 0) {
               reportClass.innerHTML = '<option value="">No classes assigned to or conducted by your account</option>';
-              reportSubject.innerHTML = '<option value="">-- No Subjects --</option>';
+              reportSubject.innerHTML = '<option value="">-- No Courses --</option>';
               reportSubject.disabled = true;
               return;
             }
@@ -480,13 +480,13 @@
 
         if (banner) {
           banner.style.display = "block";
-          banner.innerHTML = `👨‍🏫 <strong>Admin Faculty Filter:</strong> Showing assigned classes and subjects for faculty <strong>${tName.toUpperCase()}</strong>.`;
+          banner.innerHTML = `👨‍🏫 <strong>Admin Faculty Filter:</strong> Showing assigned classes and courses for faculty <strong>${tName.toUpperCase()}</strong>.`;
         }
 
         const assignedClasses = Array.from(teacherClassSubjectMap.keys()).sort();
         if (assignedClasses.length === 0) {
           reportClass.innerHTML = `<option value="">No classes assigned to ${tName}</option>`;
-          reportSubject.innerHTML = '<option value="">-- No Assigned Subjects --</option>';
+          reportSubject.innerHTML = '<option value="">-- No Assigned Courses --</option>';
           reportSubject.disabled = true;
           return;
         }
@@ -540,7 +540,7 @@
         const subjects = subjectsMap ? Array.from(subjectsMap.values()) : [];
 
         if (subjects.length === 0) {
-          reportSubject.innerHTML = '<option value="">-- No subjects assigned to this teacher for this class --</option>';
+          reportSubject.innerHTML = '<option value="">-- No courses assigned to this teacher for this class --</option>';
         } else if (subjects.length === 1) {
           const sub = subjects[0];
           const label = sub.code && sub.name && !sub.name.includes(sub.code)
@@ -555,7 +555,7 @@
             return `<option value="${sub.id}">${label}</option>`;
           }).join("");
 
-          reportSubject.innerHTML = `<option value="">-- All Assigned Subjects (${subjects.length}) --</option>` + optionsHtml;
+          reportSubject.innerHTML = `<option value="">-- All Assigned Courses (${subjects.length}) --</option>` + optionsHtml;
         }
 
       } else {
@@ -573,7 +573,7 @@
           return `<option value="${s.id}">${label}</option>`;
         }).join("");
 
-        reportSubject.innerHTML = '<option value="">-- All Subjects --</option>' + optionsHtml;
+        reportSubject.innerHTML = '<option value="">-- All Courses --</option>' + optionsHtml;
       }
     }
 
@@ -695,7 +695,7 @@
 
         if (!sessionsList.length) {
           const emptyMsg = isTeacherScoped 
-            ? `No attendance sessions found for assigned subjects conducted by ${activeTeacherName || 'your account'} in the selected date range.`
+            ? `No attendance sessions found for assigned courses conducted by ${activeTeacherName || 'your account'} in the selected date range.`
             : "No attendance sessions found in the selected date range.";
           sessionHistoryBody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding:1.5rem; color:var(--text-muted);">${emptyMsg}</td></tr>`;
         } else {
@@ -761,7 +761,7 @@
         const reportTitleEl = document.getElementById("reportTitle");
         if (reportTitleEl) {
           reportTitleEl.textContent = isTeacherScoped 
-            ? `Student Attendance Summary (Conducted by ${activeTeacherName || 'Faculty'} for Assigned Subjects)`
+            ? `Student Attendance Summary (Conducted by ${activeTeacherName || 'Faculty'} for Assigned Courses)`
             : "Student Cumulative Attendance Summary";
         }
 
@@ -772,7 +772,7 @@
         const tbody = document.getElementById("reportTableBody");
         if (!sortedStudents.length || totalHoursTaught === 0) {
           const emptyText = isTeacherScoped
-            ? `No student attendance records found for assigned subjects conducted by ${activeTeacherName || 'your account'}.`
+            ? `No student attendance records found for assigned courses conducted by ${activeTeacherName || 'your account'}.`
             : "No student records found.";
           tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:1.5rem; color:var(--text-muted);">${emptyText}</td></tr>`;
         } else {

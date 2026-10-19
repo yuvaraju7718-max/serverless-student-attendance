@@ -22,7 +22,7 @@
       <a href="students.html" class="nav-link active">Students</a>
       <a href="teachers.html" class="nav-link">Teachers</a>
       <a href="classes.html" class="nav-link">Classes</a>
-      <a href="subjects.html" class="nav-link">Subjects</a>
+      <a href="subjects.html" class="nav-link">Courses</a>
       <a href="reports.html" class="nav-link">Reports</a>
     </nav>
     <div class="nav-user">
@@ -60,8 +60,8 @@
         </div>
 
         <div class="form-group" style="margin-bottom: 0;">
-          <label class="form-label" for="studentEmail">Institutional Email (@clg.ac.in)</label>
-          <input type="email" id="studentEmail" class="form-control" placeholder="student@clg.ac.in" required pattern="^[a-zA-Z0-9._%+-]+@clg\.ac\.in$" title="Email must end with @clg.ac.in" />
+          <label class="form-label" for="studentEmail">Email Address</label>
+          <input type="email" id="studentEmail" class="form-control" placeholder="e.g. mail@gmail.com" required />
         </div>
 
         <div class="form-group" style="margin-bottom: 0;">
@@ -350,10 +350,9 @@
       const classId = document.getElementById("studentClass").value;
       const semester = Number(document.getElementById("studentSemester").value) || 5;
 
-      // Enforce Institutional Email Domain (@clg.ac.in)
-      if (!email.endsWith("@clg.ac.in")) {
-        alert("❌ Invalid Email Domain!\n\nStudents must have an official institutional email ending with @clg.ac.in\n(e.g. username@clg.ac.in).");
-        showAlert("Error: Only institutional emails ending with @clg.ac.in are allowed.", "danger");
+      // Basic email validation
+      if (!email.includes("@") || !email.includes(".")) {
+        showAlert("Error: Please provide a valid email address.", "danger");
         saveBtn.disabled = false;
         return;
       }

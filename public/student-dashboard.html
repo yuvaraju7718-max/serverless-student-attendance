@@ -232,14 +232,14 @@
     <!-- 2-Column Hero: Left Side (Overall Attendance Gauge & Advisor) | Right Side (Subject Shortage Watchlist) -->
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 1.25rem; margin-bottom: 1.5rem;">
       
-      <!-- LEFT SIDE: 3D Subject Spheres (Semester-Based Classification & Per-Subject Attendance %) -->
+      <!-- LEFT SIDE: 3D Course Spheres (Semester-Based Classification & Per-Course Attendance %) -->
       <div class="card" style="margin-bottom: 0; display: flex; flex-direction: column; justify-content: space-between; border-top: 4px solid var(--primary); min-height: 420px;">
         <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem; flex-wrap: wrap; gap: 0.5rem;">
           <div>
             <h3 class="card-title" style="margin-bottom: 0.2rem; display: flex; align-items: center; gap: 0.5rem;">
-              🔮 Semester <span id="sphereSemesterTitle">5</span> Subject Spheres
+              🔮 Semester <span id="sphereSemesterTitle">5</span> Course Spheres
             </h3>
-            <p class="card-subtitle" style="margin-bottom: 0;">Interactive 3D orbs &bull; Tap any sphere to reveal subject attendance %</p>
+            <p class="card-subtitle" style="margin-bottom: 0;">Interactive 3D orbs &bull; Tap any sphere to reveal course attendance %</p>
           </div>
           <div style="display: flex; gap: 0.5rem; align-items: center;">
             <button id="toggleAllSpheresBtn" type="button" class="btn btn-secondary btn-sm" onclick="toggleAllSpheres()" style="font-size: 0.75rem; padding: 0.35rem 0.7rem; font-weight: 600;">
@@ -251,7 +251,7 @@
         <!-- Spheres Container -->
         <div id="subjectSpheresContainer" class="spheres-container" style="flex: 1; display: flex; flex-wrap: wrap; gap: 1.5rem; justify-content: center; align-items: center; padding: 1.25rem 0.5rem; min-height: 240px;">
           <div style="text-align: center; color: var(--text-muted); font-size: 0.9rem; padding: 2rem;">
-            Loading Semester Subject Spheres...
+            Loading Semester Course Spheres...
           </div>
         </div>
 
@@ -278,14 +278,14 @@
         </div>
       </div>
 
-      <!-- RIGHT SIDE: Subjects Having Shortage of Attendance (< 75%) -->
+      <!-- RIGHT SIDE: Courses Having Shortage of Attendance (< 75%) -->
       <div class="card" id="shortageAlertCard" style="margin-bottom: 0; display: flex; flex-direction: column; justify-content: space-between; border-top: 4px solid var(--danger);">
         <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem;">
           <div>
             <h3 class="card-title" style="margin-bottom: 0.2rem; display: flex; align-items: center; gap: 0.5rem;">
               ⚠️ Attendance Shortage Watchlist
             </h3>
-            <p class="card-subtitle" style="margin-bottom: 0;">Subjects requiring immediate attendance (&lt; 75% threshold)</p>
+            <p class="card-subtitle" style="margin-bottom: 0;">Courses requiring immediate attendance (&lt; 75% threshold)</p>
           </div>
           <span id="shortageCountBadge" class="badge badge-absent" style="font-size: 0.8rem;">0 Shortages</span>
         </div>
@@ -305,16 +305,16 @@
 
     </div>
 
-    <!-- Attendance Percentage Breakdown per Subject -->
+    <!-- Attendance Percentage Breakdown per Course -->
     <div class="card">
-      <h3 class="card-title">Subject-Wise Attendance Breakdown</h3>
+      <h3 class="card-title">Course-Wise Attendance Breakdown</h3>
       <p class="card-subtitle">Detailed attendance calculation according to academic records.</p>
 
       <div class="table-responsive">
         <table class="table">
           <thead>
             <tr>
-              <th>Subject</th>
+              <th>Course</th>
               <th style="text-align: center;">Total Hours</th>
               <th style="text-align: center;">Attended (Present)</th>
               <th style="text-align: center;">Absent</th>
@@ -344,7 +344,7 @@
             <tr>
               <th>Date & Time</th>
               <th>Duration</th>
-              <th>Subject</th>
+              <th>Course</th>
               <th>Class</th>
               <th>Status</th>
             </tr>
@@ -640,7 +640,7 @@
           if (semesterSubjects.length === 0) {
             spheresContainer.innerHTML = `
               <div style="text-align: center; color: var(--text-muted); padding: 2rem; font-size: 0.9rem;">
-                No subjects found for Semester ${finalSem}. Add subjects in the Subject Catalog.
+                No courses found for Semester ${finalSem}. Add courses in the Course Catalog.
               </div>
             `;
           } else {
@@ -658,12 +658,12 @@
               return `
                 <div class="sphere-wrapper" onclick="this.classList.toggle('flipped')" title="Tap to flip and view ${s.name} attendance %">
                   <div class="sphere-orb" style="box-shadow: 0 12px 25px -4px ${colorProfile.glow};">
-                    <!-- Front Face: ONLY the subject name with differentiated color -->
+                    <!-- Front Face: ONLY the course name with differentiated color -->
                     <div class="sphere-face sphere-front" style="background: ${colorProfile.gradient};">
                       <div class="sphere-subject-title">${s.name}</div>
                       <div class="sphere-tap-hint">👆 Tap</div>
                     </div>
-                    <!-- Back Face: Attendance % for this subject only with matching differentiated color -->
+                    <!-- Back Face: Attendance % for this course only with matching differentiated color -->
                     <div class="sphere-face sphere-back" style="background: ${colorProfile.gradient};">
                       <div class="sphere-pct-value">${total > 0 ? pct + '%' : '0%'}</div>
                       <div class="sphere-hours-detail">${present} / ${total} hrs</div>
@@ -716,14 +716,14 @@
                 <div style="font-size: 2rem; margin-bottom: 0.25rem;">🎉</div>
                 <strong style="color: #166534; font-size: 1rem; display: block;">All Clear! No Attendance Shortage</strong>
                 <p style="font-size: 0.825rem; color: #15803d; margin: 0.4rem 0 0 0;">
-                  You are maintaining eligible attendance (>= 75%) across all enrolled subjects. Keep up the consistency!
+                  You are maintaining eligible attendance (>= 75%) across all enrolled courses. Keep up the consistency!
                 </p>
               </div>
             `;
           } else {
             shortageCard.style.borderTopColor = "var(--danger)";
             shortageBadge.className = "badge badge-absent";
-            shortageBadge.textContent = `${shortageList.length} Subject${shortageList.length > 1 ? 's' : ''}`;
+            shortageBadge.textContent = `${shortageList.length} Course${shortageList.length > 1 ? 's' : ''}`;
             shortageContainer.innerHTML = shortageList.map(s => {
               const profile = getSphereColorProfile(s.pct, s.totalHours);
               return `
@@ -746,7 +746,7 @@
 
           // 5. Render Subject Breakdown Table
           if (semesterSubjects.length === 0) {
-            subjectBody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">No subjects registered for Semester ${finalSem}.</td></tr>`;
+            subjectBody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">No courses registered for Semester ${finalSem}.</td></tr>`;
           } else {
             subjectBody.innerHTML = semesterSubjects.map(s => {
               const subStat = statsBySubject[s.name] || statsBySubject[s.code] || { totalHours: 0, presentHours: 0, absentHours: 0 };
